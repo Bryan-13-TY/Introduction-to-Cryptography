@@ -20,10 +20,16 @@ def calcular_modulo(numero: int, modulo: int) -> int:
 
 
 def main() -> None:
-    residuo = calcular_modulo(12, 9)
-    #print(f"{residuo=}")
-    #primos = generar_primos(666)
-    #print(*primos)
+    primos = generar_primos(4376)
+    print(*primos)
+
+def fib(n: int) -> None:
+    a, b = 0, 1
+    while a < n:
+        print(a, end=" ")
+        a, b = b, a + b
+    print()
+
 
 if __name__ == "__main__":
     main()

@@ -73,6 +73,13 @@ def _get_char(unicode: int) -> str:
     return char
 
 
+def key_is_valid(key: tuple[int, int]) -> bool:
+    coprimes = _coprime_numbers(PRINTABLE_ASCII_LENGHT)
+    a, b = key
+
+    return a in coprimes and 0 <= b <= PRINTABLE_ASCII_LENGHT - 1
+
+
 def _gcd(a: int, b: int) -> int:
     """
     Devuelve el máximo común divisor de dos divisores `a` y `b`.
@@ -84,22 +91,22 @@ def _gcd(a: int, b: int) -> int:
     :return: Máximo común divisor o 1 si este no se encuentra. 
     :rtype: int
     """
+    # Divisor común trivial
     res = 1
 
     while a != 1 and b != 1:
-        gcd_is_found = False
+        factor_is_found = False
 
-        for i in range(2, min(a, b) +1 ):
+        for i in range(2, min(a, b) + 1):
             if a % i == 0 and b % i == 0:
                 res *= i
                 a //= i
                 b //= i
-                gcd_is_found = True
+                factor_is_found = True
                 break
-        
-        if not gcd_is_found:
+
+        if not factor_is_found:
             break
-    
     return res
 
 
@@ -221,7 +228,7 @@ def encrypt_affin(
         with open(BASE_DIR / ciphertext_filename, "w", encoding="utf-8") as f:
             f.write(ciphertext)
     except FileNotFoundError:
-        print(">> El archivo con el ciphertext no existe")
+        print(">> El archivo con el 'ciphertext' no existe")
         return
 
 
@@ -255,7 +262,7 @@ def decrypt_affin(
             # Solo concatenamos el carácter
             plaintext += c
         else:
-            m = ((_get_num(c) - b) * a_1) % 95
+            m = ((_get_num(c) - b) * a_1) % PRINTABLE_ASCII_LENGHT
             plaintext += _get_char(m)
 
     print(f"\n>> El inverso multiplicativo usando fue: {a_1}")
@@ -277,14 +284,18 @@ def main() -> None:
 3.- Descifrar el texto cifrado
 4.- Salir 
 """)
-        option = input("Elija una de las opciones: ")
+        option = input("Opción: ")
         match option:
             case "1":
                 key_generator_affin()
                 _wait_key()
             case "2":
-                key = input("\nIngresa una llave válida (ej: (49, 82)): ")
+                key = input("\nIngresa una llave válida (ej: (49, 82)): ").strip()
                 key_tuple = ast.literal_eval(key)
+                if not key_is_valid(key_tuple):
+                    print(">> La llave no es válida")
+                    return
+                
                 plaintext_filename = input("Escribe el nombre del archivo con el 'plaintext': ")
                 if not _file_exists(plaintext_filename):
                     print(">> El archivo con el 'plaintext' no existe")
@@ -296,8 +307,12 @@ def main() -> None:
                 encrypt_affin(key_tuple, plaintext_filename, ciphertext_filename)
                 _wait_key()
             case "3":
-                key = input("\nIngresa una llave válida (ej: (49, 82)): ")
+                key = input("\nIngresa una llave válida (ej: (49, 82)): ").strip()
                 key_tuple = ast.literal_eval(key)
+                if not key_is_valid(key_tuple):
+                    print(">> La llave no es válida")
+                    return
+
                 ciphertext_filename = input("Escribe el nombre del archivo con el 'ciphertext': ")
                 if not _file_exists(ciphertext_filename):
                     print(">> El archivo con el 'ciphertext' no existe")
