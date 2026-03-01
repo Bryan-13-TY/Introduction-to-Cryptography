@@ -197,7 +197,7 @@ def encrypt_hill(
         return
     
 
-def decypt_hill(
+def decrypt_hill(
         key: np.ndarray,
         ciphertext_filename: str
     ) -> None:
@@ -231,11 +231,9 @@ def decypt_hill(
     # Agregar los caracteres especiales originales
     for j, m in enumerate(ciphertext):
         if m in ("\n", "\t") or m in VOCALES_ACENTUADAS:
-            plaintext = plaintext[:j] + m + ciphertext[j:]
-
-    plaintext_lenght = len(plaintext)
+            plaintext = plaintext[:j] + m + plaintext[j:]
         
-    print(f">> Texto original recuperado:\n\n{plaintext[:plaintext_lenght - 1]}")
+    print(f">> Texto original recuperado:\n\n{plaintext}")
 
 
 def main() -> None:
@@ -289,7 +287,7 @@ def main() -> None:
                     print(">> El archivo con el 'ciphertext' no existe")
                     return
                 
-                decypt_hill(key_valid_format, ciphertext_filename)
+                decrypt_hill(key_valid_format, ciphertext_filename)
                 _wait_key()
             case "4":
                 break
