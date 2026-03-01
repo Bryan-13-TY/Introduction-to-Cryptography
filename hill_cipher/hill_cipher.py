@@ -164,34 +164,40 @@ def encrypt_hill(
         print(">> El archivo con el 'plaintext' no existe")
         return
     
-    # Eliminamos los caracteres que no pertenecen al alfabeto
-    text = [c for c in plaintext if c not in ("\n", "\t") and c not in VOCALES_ACENTUADAS]
+    # Filtrar caracteres que sí se cifran
+    filtered_text = [
+        c for c in plaintext
+        if c not in ("\n", "\t") and c not in VOCALES_ACENTUADAS
+    ]
     
-    # Aseguramos longitud para dividir en bloques de dos
-    if len(text) % 2 != 0:
-        text.append("Ñ")
-
-    ciphertext = ""
+    # Padding con X, para asegurar la división en bloques de 2
+    if len(filtered_text) % 2 != 0:
+        filtered_text.append("X")
+    
+    # === CIFRADO EN BLOQUES ===
+    encrypted_clean = ""
     i = 0
-    while i < len(text):
-        # Toma el texto en bloques de 2
-        block = text[i:i + 2]
-        # Convierte caracteres a números
+    while i < len(filtered_text):
+        block = filtered_text[i:i+2]
         vector = np.array([_get_num(block[0]), _get_num(block[1])])
-        # Multiplica el vector por la llave y se aplica el módulo
         cipher = np.dot(key, vector) % PRINTABLE_ASCII_LENGHT
-        # Convierte a caracteres cifrados
-        ciphertext += _get_char(cipher[0]) + _get_char(cipher[1])
+        encrypted_clean += _get_char(cipher[0]) + _get_char(cipher[1])
         i += 2
 
-    # Agregar los caracteres especiales originales
-    for j, c in enumerate(plaintext):
+    # === REINSERCIÓN CORRECTA ===
+    final_ciphertext = ""
+    k = 0  # Índice del texto cifrado limpio
+
+    for c in plaintext:
         if c in ("\n", "\t") or c in VOCALES_ACENTUADAS:
-            ciphertext = ciphertext[:j] + c + ciphertext[j:]
+            final_ciphertext += c
+        else:
+            final_ciphertext += encrypted_clean[k]
+            k += 1
 
     try:
         with open(BASE_DIR / ciphertext_filename, "w", encoding="utf-8") as f:
-            f.write(ciphertext)
+            f.write(final_ciphertext)
     except FileNotFoundError:
         print(">> El archivo con el 'ciphertext' no existe")
         return
@@ -208,32 +214,40 @@ def decrypt_hill(
         print(">> El archivo con el 'ciphertext' no existe")
         return
     
-    # Eliminamos 
-    text = [m for m in ciphertext if m not in ("\n", "\t") and m not in VOCALES_ACENTUADAS]
-    # Aseguramos longitud para dividir en bloques de dos
-    if len(text) % 2 != 0:
-        text.append("Ñ")
-
-    plaintext = ""
     inverse_key = _calculate_inverse_key(key)
+
+    # Filtrar caracteres cifrados válidos
+    filtered_text = [
+        c for c in ciphertext
+        if c not in ("\n", "\t") and c not in VOCALES_ACENTUADAS
+    ]
+
+    # === DESCIFRADO POR BLOUES ===
+    decrypted_clean = ""
     i = 0
-    while i < len(text):
-        # Toma el texto en bloques de 2
-        block = text[i:i + 2]
-        # Convierte caracteres a números
+    while i < len(filtered_text):
+        block = filtered_text[i:i+2]
         vector = np.array([_get_num(block[0]), _get_num(block[1])])
-        # Multiplica el vector por la lleva inversa y se aplica el módulo
-        cipher = np.dot(inverse_key, vector) % PRINTABLE_ASCII_LENGHT
-        # Convierte a caracteres cifrados
-        plaintext += _get_char(cipher[0]) + _get_char(cipher[1])
-        i += 2
-    
-    # Agregar los caracteres especiales originales
-    for j, m in enumerate(ciphertext):
-        if m in ("\n", "\t") or m in VOCALES_ACENTUADAS:
-            plaintext = plaintext[:j] + m + plaintext[j:]
+        plain = np.dot(inverse_key, vector) % PRINTABLE_ASCII_LENGHT
+        decrypted_clean += _get_char(plain[0]) + _get_char(plain[1])
+        i += 3
+
+    # === REINSERCIÓN CORRECTA ===
+    final_plaintext = ""
+    k = 0  # Índice del texto original limpio
+
+    for c in ciphertext:
+        if c in ("\n", "\t") or c in VOCALES_ACENTUADAS:
+            final_plaintext += c
+        else:
+            final_plaintext += decrypted_clean[k]
+            k += 1
+
+    # Eliminar el padding si es que existe
+    if final_plaintext.endswith("X"):
+        final_plaintext = final_plaintext[:-1]
         
-    print(f">> Texto original recuperado:\n\n{plaintext}")
+    print(f">> Texto original recuperado:\n\n{final_plaintext}")
 
 
 def main() -> None:
