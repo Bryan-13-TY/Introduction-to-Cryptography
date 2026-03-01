@@ -232,8 +232,10 @@ def decypt_hill(
     for j, m in enumerate(ciphertext):
         if m in ("\n", "\t") or m in VOCALES_ACENTUADAS:
             plaintext = plaintext[:j] + m + ciphertext[j:]
+
+    plaintext_lenght = len(plaintext)
         
-    print(f">> Texto original recuperado:\n\n{plaintext}")
+    print(f">> Texto original recuperado:\n\n{plaintext[:plaintext_lenght - 1]}")
 
 
 def main() -> None:
