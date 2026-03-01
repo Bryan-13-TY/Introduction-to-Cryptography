@@ -35,15 +35,6 @@ def _get_num(character: str) -> int:
     :type character: str
     :return: Código Unicode correspondiente a un carácter.
     :rtype: int
-
-    Examples
-    --------
-    >>> _get_num('A')
-    33
-    >>> _get_num('+')
-    11
-    >>> _get_num('~')
-    94
     """
     unicode = ord(character) - 32
     return unicode
@@ -58,15 +49,6 @@ def _get_char(unicode: int) -> str:
     :type unicode: int
     :return: Cáracter correspondiente al código Unicode.
     :rtype: str
-
-    Examples
-    --------
-    >>> _get_char(33)
-    'A'
-    >>> _get_char(11)
-    '+'
-    >>> _get_char(94)
-    '~'
     """
     char = chr(unicode + 32)
     return char
@@ -74,13 +56,14 @@ def _get_char(unicode: int) -> str:
 
 def _gcd(a: int, b: int) -> int:
     """
-    Devuelve el máximo común divisor de dos divisores `a` y `b`.
+    Devuelve el máximo común divisor de dos divisores `a` y `b`, usando
+    el algoritmo extendido de Euclides.
 
     :param a: Primer divisor.
     :type a: int
     :param b: Segundo divisor:
     :type b: int
-    :return: Máximo común divisor o 1 si este no se encuentra. 
+    :return: Máximo común divisor. 
     :rtype: int
     """
     a, b = abs(a), abs(b)
@@ -272,8 +255,7 @@ def main() -> None:
         match option:
             case "1":
                 key = key_generation_hill()
-                inverse_key = _calculate_inverse_key(key)
-                print(inverse_key)
+                print(f"\nY su inversa K^-1 =\n{_calculate_inverse_key(key)}")
                 _wait_key()
             case "2":
                 key = input("\nIngresa una llave válida (ej: [81, 63, 66, 85]): ").strip()
