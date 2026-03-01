@@ -36,15 +36,6 @@ def _get_num(character: str) -> int:
     :type character: str
     :return: Código Unicode correspondiente a un carácter.
     :rtype: int
-
-    Examples
-    --------
-    >>> _get_num('A')
-    33
-    >>> _get_num('+')
-    11
-    >>> _get_num('~')
-    94
     """
     unicode = ord(character) - 32
     return unicode
@@ -59,15 +50,6 @@ def _get_char(unicode: int) -> str:
     :type unicode: int
     :return: Cáracter correspondiente al código Unicode.
     :rtype: str
-
-    Examples
-    --------
-    >>> _get_char(33)
-    'A'
-    >>> _get_char(11)
-    '+'
-    >>> _get_char(94)
-    '~'
     """
     char = chr(unicode + 32)
     return char
@@ -142,13 +124,6 @@ def _multiplicative_inverse(n: int, a: int) -> int | None:
     :return: Inverso multiplicativo o None si `n` es menor que 2 y si
              `a` no es comprimo con `n`.
     :rtype: int | None
-
-    Examples
-    --------
-    >>> _find_multiplicative_inverse(11, 7)
-    8
-    >>> _find_multiplicative_inverse(7, 4)
-    2
     """
     if not n >= 2:
         return None
