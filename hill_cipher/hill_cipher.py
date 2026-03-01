@@ -35,6 +35,14 @@ def _get_num(character: str) -> int:
     :type character: str
     :return: Código Unicode correspondiente a un carácter.
     :rtype: int
+<<<<<<< Updated upstream
+=======
+
+    Examples
+    --------
+    >>> _get_num('A')
+    33
+>>>>>>> Stashed changes
     """
     unicode = ord(character) - 32
     return unicode
