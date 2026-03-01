@@ -6,12 +6,11 @@ import os
 __all__ = [
     "key_generation_hill",
     "encrypt_hill",
-    "decypt_hill"
+    "decrypt_hill"
 ]
 
 BASE_DIR = Path(__file__).parent
 PRINTABLE_ASCII_LENGHT = 95
-VOCALES_ACENTUADAS = "ÁÉÍÓÚáéíóú"
 
 def _clean_console() -> None:
     os.system("cls" if os .name == "nt" else "clear")
@@ -165,10 +164,7 @@ def encrypt_hill(
         return
     
     # Filtrar caracteres que sí se cifran
-    filtered_text = [
-        c for c in plaintext
-        if c not in ("\n", "\t") and c not in VOCALES_ACENTUADAS
-    ]
+    filtered_text = [c for c in plaintext if 32 <= ord(c) <= 126]
     
     # Padding con X, para asegurar la división en bloques de 2
     if len(filtered_text) % 2 != 0:
@@ -189,11 +185,14 @@ def encrypt_hill(
     k = 0  # Índice del texto cifrado limpio
 
     for c in plaintext:
-        if c in ("\n", "\t") or c in VOCALES_ACENTUADAS:
-            final_ciphertext += c
-        else:
+        if 32 <= ord(c) <= 126:
             final_ciphertext += encrypted_clean[k]
             k += 1
+        else:
+            final_ciphertext += c
+
+    if k < len(encrypted_clean):
+        final_ciphertext += encrypted_clean[k:]
 
     try:
         with open(BASE_DIR / ciphertext_filename, "w", encoding="utf-8") as f:
@@ -217,10 +216,7 @@ def decrypt_hill(
     inverse_key = _calculate_inverse_key(key)
 
     # Filtrar caracteres cifrados válidos
-    filtered_text = [
-        c for c in ciphertext
-        if c not in ("\n", "\t") and c not in VOCALES_ACENTUADAS
-    ]
+    filtered_text = [c for c in ciphertext if 32 <= ord(c) <= 126]
 
     # === DESCIFRADO POR BLOUES ===
     decrypted_clean = ""
@@ -230,18 +226,18 @@ def decrypt_hill(
         vector = np.array([_get_num(block[0]), _get_num(block[1])])
         plain = np.dot(inverse_key, vector) % PRINTABLE_ASCII_LENGHT
         decrypted_clean += _get_char(plain[0]) + _get_char(plain[1])
-        i += 3
+        i += 2
 
     # === REINSERCIÓN CORRECTA ===
     final_plaintext = ""
     k = 0  # Índice del texto original limpio
 
     for c in ciphertext:
-        if c in ("\n", "\t") or c in VOCALES_ACENTUADAS:
-            final_plaintext += c
-        else:
+        if 32 <= ord(c) <= 126:
             final_plaintext += decrypted_clean[k]
             k += 1
+        else:
+            final_plaintext += c
 
     # Eliminar el padding si es que existe
     if final_plaintext.endswith("X"):
