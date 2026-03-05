@@ -242,7 +242,8 @@ def decrypt_hill(
     # Eliminar el padding si es que existe
     if final_plaintext.endswith("X"):
         final_plaintext = final_plaintext[:-1]
-        
+
+    print(f"\n>> El K^-1 mod n usado fue: \n{_calculate_inverse_key(key)}")
     print(f">> Texto original recuperado:\n\n{final_plaintext}")
 
 
