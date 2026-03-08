@@ -120,7 +120,7 @@ def _calculate_adjuntate_matrix(matrix: np.ndarray) -> np.ndarray:
     return adjuntate_matrix 
 
 
-def key_generation_hill() -> np.ndarray:
+def key_generator_hill() -> np.ndarray:
     while True:
         key = _generate_random_matrix()
         determinant = _calculate_determinant(key)
@@ -265,7 +265,7 @@ def main() -> None:
         option = input("Opción: ")
         match option:
             case "1":
-                key = key_generation_hill()
+                key = key_generator_hill()
                 print(f"\nY su inversa K^-1 =\n{_calculate_inverse_key(key)}")
                 _wait_key()
             case "2":
