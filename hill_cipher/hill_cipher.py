@@ -4,7 +4,7 @@ import msvcrt
 import os
 
 __all__ = [
-    "key_generation_hill",
+    "key_generator_hill",
     "encrypt_hill",
     "decrypt_hill"
 ]
