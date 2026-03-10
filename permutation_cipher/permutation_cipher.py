@@ -4,6 +4,7 @@ import msvcrt
 import os
 
 BASE_DIR = Path(__file__).parent
+SIZE_PLAINTEXT = 0
 
 def _clean_console() -> None:
     os.system("cls" if os .name == "nt" else "clear")
@@ -72,6 +73,9 @@ def permutation_random_generator(permutation_size: int) -> tuple[np.ndarray, np.
 def encrypt_permutation(plaintext: str, permutation_file: str) -> None:    
     permutation = _recover_permutation_from_file(permutation_file)
     block_size = len(permutation)
+    # FIXME No se deberían de usar variables globales, pero no veo otra forma de hacerlo
+    global SIZE_PLAINTEXT
+    SIZE_PLAINTEXT = len(plaintext)
     
     # Padding con X, para asegurar la dividión en bloques de 'block_size'
     while len(plaintext) % len(permutation) != 0:
@@ -127,7 +131,7 @@ def decrypt_permutation(ciphertext: str, permutation_file: str) -> None:
 
     plaintext = "".join(aux_ciphertex_blocks)
 
-    print("\nEl texto original recuperado es el siguiente:\n\n", plaintext)
+    print("\nEl texto original recuperado es el siguiente:\n\n", plaintext[:SIZE_PLAINTEXT])
 
 
 def main() -> None:
@@ -151,6 +155,9 @@ def main() -> None:
                 permutation_size = input("\nIngresa el tamaño que tendrá la permutación: ")
                 if not permutation_size.isdigit():
                     print(">> Debe ser un número")
+                    return
+                if not int(permutation_size) >= 3:
+                    print(">> Deber ser mayor o igual a 3")
                     return
                 
                 (
