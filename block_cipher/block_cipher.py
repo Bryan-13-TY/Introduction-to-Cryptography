@@ -6,6 +6,7 @@ from pathlib import Path
 
 from Crypto.Cipher import DES
 from Crypto.Util.Padding import pad
+from Crypto.Util.Padding import unpad
 
 BASE_DIR = Path(__file__).parent
 
@@ -40,11 +41,6 @@ def key_random_generator() -> None:
     base64_key = binary_to_base64(binary_key)
     print(f"Tu llave K es la siguiente: {base64_key}")
     
-import base64
-import os
-from Crypto.Cipher import DES
-from Crypto.Util.Padding import pad
-from Crypto.Util.Padding import unpad
 
 # Supongamos que tienes una llave en base64
 llave_base64 = "c2VjcmV0MTIz"  # Esto es "secret123" en base64
