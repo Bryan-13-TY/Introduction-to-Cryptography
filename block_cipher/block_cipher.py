@@ -23,16 +23,11 @@ def _file_exists(filename: str) -> bool:
     return Path(BASE_DIR / filename).exists()
 
 
-def base64_to_binary(base64_str: str) -> str:
-    byte_data = base64.b64decode(base64_str)
-    binary_str = "".join(f"{byte:08b}" for byte in byte_data)
-    return binary_str
+    return llave_base64
 
 
-def binary_to_base64(binary_str: str) -> str:
-    byte_data = int(binary_str, 2).to_bytes(len(binary_str) // 8, byteorder="big")
-    base64_str = base64.b64encode(byte_data).decode()
-    return base64_str
+# Versión alternativa usando numpy.random.bytes (más eficiente)
+def key_random_generator() -> str:
 
 
 def key_random_generator() -> None:
