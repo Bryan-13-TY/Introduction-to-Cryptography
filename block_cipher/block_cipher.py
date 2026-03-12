@@ -6,6 +6,7 @@ from pathlib import Path
 
 from Crypto.Cipher import DES
 from Crypto.Util.Padding import pad
+from Crypto.Util.Padding import unpad
 
 BASE_DIR = Path(__file__).parent
 
@@ -39,15 +40,7 @@ def key_random_generator() -> None:
     binary_key = format(num, "08b")
     base64_key = binary_to_base64(binary_key)
     print(f"Tu llave K es la siguiente: {base64_key}")
-    
-import base64
-import os
-from Crypto.Cipher import DES
-from Crypto.Util.Padding import pad
-from Crypto.Util.Padding import unpad
 
-# Supongamos que tienes una llave en base64
-llave_base64 = "c2VjcmV0MTIz"  # Esto es "secret123" en base64
 
 def encriptar_archivo_txt(ruta_txt, llave_base64, ruta_salida=None):
     # 1. Procesar la llave
@@ -142,8 +135,20 @@ def main() -> None:
                 key_random_generator()
                 _wait_key()
             case "2":
+                key = input("Ingresa tu llave K: ")
+                filename = input("Ingresa el nombre de tu archivo: ")
+                if not _file_exists(filename):
+                    print(">> El archivo no existe")
+                    return
+                filename_encrypt = input("Ingresa el nombre con el que se guardara tu archivo cifrado: ")
+                encriptar_archivo_txt(filename, key, filename_encrypt)
                 _wait_key()
             case "3":
+                key = input("Ingresa tu llave K: ")
+                filename = input("Ingresa el nombre de tu archivo: ")
+                if not _file_exists(filename):
+                    print(">> El archivo con la 'permutación' no existe")
+                    return
                 _wait_key()
             case "4":
                 break
