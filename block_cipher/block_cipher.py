@@ -39,6 +39,86 @@ def key_random_generator() -> None:
     binary_key = format(num, "08b")
     base64_key = binary_to_base64(binary_key)
     print(f"Tu llave K es la siguiente: {base64_key}")
+    
+import base64
+import os
+from Crypto.Cipher import DES
+from Crypto.Util.Padding import pad
+from Crypto.Util.Padding import unpad
+
+# Supongamos que tienes una llave en base64
+llave_base64 = "c2VjcmV0MTIz"  # Esto es "secret123" en base64
+
+def encriptar_archivo_txt(ruta_txt, llave_base64, ruta_salida=None):
+    # 1. Procesar la llave
+    #llave = base64.b64decode(llave_base64)
+    #if len(llave) != 8:
+    #   llave = llave[:8]  # Ajustar a 8 bytes
+    #    print(f"Llave ajustada: {llave}")
+    
+    # 2. Leer el archivo .txt
+    with open(ruta_txt, 'r', encoding='utf-8') as f:
+        texto_plano = f.read()
+    
+    datos_bytes = texto_plano.encode('utf-8')
+    
+    # 3. Generar IV aleatorio
+    iv = os.urandom(8)
+    
+    # 4. Encriptar
+    cipher = DES.new(llave_base64, DES.MODE_CBC, iv)
+    datos_con_padding = pad(datos_bytes, DES.block_size)
+    texto_cifrado = cipher.encrypt(datos_con_padding)
+    
+    # 5. Guardar resultado (IV + datos cifrados)
+    if ruta_salida is None:
+        ruta_salida = ruta_txt.replace('.txt', '.enc')
+    
+    with open(ruta_salida, 'wb') as f:
+        # Guardamos el IV al principio del archivo (necesario para descifrar)
+        f.write(iv)
+        f.write(texto_cifrado)
+    
+    print(f" Archivo encriptado guardado en: {ruta_salida}")
+    #print(f"   IV usado: {iv.hex()}")
+    print(f"   Tamaño cifrado: {len(texto_cifrado)} bytes")
+    
+    return ruta_salida
+
+def descifrar_archivo(ruta_cifrado, llave_base64, ruta_salida=None):
+    
+    # 2. Leer archivo cifrado
+    with open(ruta_cifrado, 'rb') as f:
+        # Los primeros 8 bytes son el IV
+        iv = f.read(8)
+        texto_cifrado = f.read()
+    
+    # 3. Descifrar
+    cipher = DES.new(llave_base64, DES.MODE_CBC, iv)
+    datos_descifrados = cipher.decrypt(texto_cifrado)
+    
+    # 4. Quitar padding
+    try:
+        datos_sin_padding = unpad(datos_descifrados, DES.block_size)
+    except ValueError as e:
+        print(f" Error de padding: {e}")
+        print("   Posiblemente la llave es incorrecta o el archivo está corrupto")
+        return None
+    
+    # 5. Convertir bytes a texto
+    texto_descifrado = datos_sin_padding.decode('utf-8')
+    
+    # 6. Guardar archivo .txt
+    if ruta_salida is None:
+        ruta_salida = ruta_cifrado.replace('.enc', '_descifrado.txt')
+    
+    with open(ruta_salida, 'w', encoding='utf-8') as f:
+        f.write(texto_descifrado)
+    
+    print(f" Archivo descifrado guardado en: {ruta_salida}")
+    print(f"   Contenido: {texto_descifrado[:100]}..." if len(texto_descifrado) > 100 else f"   Contenido: {texto_descifrado}")
+    
+    return ruta_salida
 
 
 def main() -> None:
