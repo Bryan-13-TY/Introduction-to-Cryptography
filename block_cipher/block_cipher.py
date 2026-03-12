@@ -35,7 +35,7 @@ def key_random_generator() -> str:
     # Convertir a base64
     llave_base64 = base64.b64encode(llave_bytes).decode()
     
-    print(f"Llave DES generada (base64): {llave_base64}")
+    print(f"Llave DES es (base64): {llave_base64}")
     
     return llave_base64
 
