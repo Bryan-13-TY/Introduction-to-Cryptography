@@ -102,7 +102,7 @@ def encrypt_permutation(plaintext: str, permutation_file: str) -> None:
 
     ciphertext = "".join(aux_plaintext_blocks)
     
-    print("\nEl texto cifrado es el siguiente:\n\n", ciphertext)
+    print(f"\nEl texto cifrado es el siguiente:\n\n{ciphertext}")
 
 
 def decrypt_permutation(ciphertext: str, permutation_file: str) -> None:
@@ -131,7 +131,7 @@ def decrypt_permutation(ciphertext: str, permutation_file: str) -> None:
 
     plaintext = "".join(aux_ciphertex_blocks)
 
-    print("\nEl texto original recuperado es el siguiente:\n\n", plaintext[:SIZE_PLAINTEXT])
+    print(f"\nEl texto original recuperado es el siguiente:\n\n{plaintext[:SIZE_PLAINTEXT]}")
 
 
 def main() -> None:
