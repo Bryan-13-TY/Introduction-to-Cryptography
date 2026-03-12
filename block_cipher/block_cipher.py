@@ -23,24 +23,22 @@ def _file_exists(filename: str) -> bool:
     return Path(BASE_DIR / filename).exists()
 
 
-def base64_to_binary(base64_str: str) -> str:
-    byte_data = base64.b64decode(base64_str)
-    binary_str = "".join(f"{byte:08b}" for byte in byte_data)
-    return binary_str
+    return llave_base64
 
 
-def binary_to_base64(binary_str: str) -> str:
-    byte_data = int(binary_str, 2).to_bytes(len(binary_str) // 8, byteorder="big")
-    base64_str = base64.b64encode(byte_data).decode()
-    return base64_str
+# Versión alternativa usando numpy.random.bytes (más eficiente)
+def key_random_generator() -> str:
 
-
-def key_random_generator() -> None:
-    num = np.random.randint(0, 128)
-    binary_key = format(num, "08b")
-    base64_key = binary_to_base64(binary_key)
-    print(f"Tu llave K es la siguiente: {base64_key}")
+    # Generar 8 bytes aleatorios
+    llave_bytes = np.random.bytes(8)
     
+    # Convertir a base64
+    llave_base64 = base64.b64encode(llave_bytes).decode()
+    
+    print(f"Llave DES generada (base64): {llave_base64}")
+    
+    return llave_base64
+
 
 # Supongamos que tienes una llave en base64
 llave_base64 = "c2VjcmV0MTIz"  # Esto es "secret123" en base64
