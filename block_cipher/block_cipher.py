@@ -29,6 +29,7 @@ def _file_exists(filename: str) -> bool:
 # Versión alternativa usando numpy.random.bytes (más eficiente)
 def key_random_generator() -> str:
 
+<<<<<<< HEAD
     # Generar 8 bytes aleatorios
     llave_bytes = np.random.bytes(8)
     
@@ -38,10 +39,15 @@ def key_random_generator() -> str:
     print(f"Llave DES es (base64): {llave_base64}")
     
     return llave_base64
+=======
+>>>>>>> 545d406f882aa6a0c3d23756fc921fe982d3643f
 
+def key_random_generator() -> None:
+    num = np.random.randint(0, 128)
+    binary_key = format(num, "08b")
+    base64_key = binary_to_base64(binary_key)
+    print(f"Tu llave K es la siguiente: {base64_key}")
 
-# Supongamos que tienes una llave en base64
-llave_base64 = "c2VjcmV0MTIz"  # Esto es "secret123" en base64
 
 def encriptar_archivo_txt(ruta_txt, llave_base64, ruta_salida=None):
     # 1. Procesar la llave
@@ -136,8 +142,20 @@ def main() -> None:
                 key_random_generator()
                 _wait_key()
             case "2":
+                key = input("Ingresa tu llave K: ")
+                filename = input("Ingresa el nombre de tu archivo: ")
+                if not _file_exists(filename):
+                    print(">> El archivo no existe")
+                    return
+                filename_encrypt = input("Ingresa el nombre con el que se guardara tu archivo cifrado: ")
+                encriptar_archivo_txt(filename, key, filename_encrypt)
                 _wait_key()
             case "3":
+                key = input("Ingresa tu llave K: ")
+                filename = input("Ingresa el nombre de tu archivo: ")
+                if not _file_exists(filename):
+                    print(">> El archivo con la 'permutación' no existe")
+                    return
                 _wait_key()
             case "4":
                 break
