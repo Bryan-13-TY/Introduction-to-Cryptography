@@ -22,32 +22,14 @@ def _wait_key() -> None:
 def _file_exists(filename: str) -> bool:
     return Path(BASE_DIR / filename).exists()
 
-
-    return llave_base64
-
-
-# Versión alternativa usando numpy.random.bytes (más eficiente)
 def key_random_generator() -> str:
-
-<<<<<<< HEAD
     # Generar 8 bytes aleatorios
     llave_bytes = np.random.bytes(8)
     
     # Convertir a base64
     llave_base64 = base64.b64encode(llave_bytes).decode()
     
-    print(f"Llave DES es (base64): {llave_base64}")
-    
-    return llave_base64
-=======
->>>>>>> 545d406f882aa6a0c3d23756fc921fe982d3643f
-
-def key_random_generator() -> None:
-    num = np.random.randint(0, 128)
-    binary_key = format(num, "08b")
-    base64_key = binary_to_base64(binary_key)
-    print(f"Tu llave K es la siguiente: {base64_key}")
-
+    print(f"🔑 Llave DES generada (base64): {llave_base64}")
 
 def encriptar_archivo_txt(ruta_txt, llave_base64, ruta_salida=None):
     # 1. Procesar la llave
