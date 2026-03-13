@@ -61,7 +61,7 @@ def encriptar_archivo_txt(plaintext_filename, llave_base64, ciphertext_filename=
         # Determinar nombre de salida (igual que Hill Cipher)
         if ciphertext_filename is None:
             # Usar el mismo nombre pero con extensión .enc
-            ciphertext_filename = str(Path(plaintext_filename).stem) + '.enc'
+            ciphertext_filename = str(Path(plaintext_filename).stem) + '.txt'
         
         # Construir ruta completa de salida (igual que Hill Cipher)
         ruta_completa_salida = BASE_DIR / ciphertext_filename
@@ -120,7 +120,7 @@ def descifrar_archivo(ciphertext_filename, llave_base64, plaintext_filename=None
 
         # Determinar nombre de salida (igual que Hill Cipher)
         if plaintext_filename is None:
-            if Path(ciphertext_filename).suffix == '.enc':
+            if Path(ciphertext_filename).suffix == '.txt':
                 nombre_base = Path(ciphertext_filename).stem
                 plaintext_filename = f"{nombre_base}_descifrado.txt"
             else:
