@@ -28,7 +28,6 @@ def key_random_generator() -> str:
     return llave_base64
 
 def encriptar_archivo_txt(plaintext_filename, llave_base64, ciphertext_filename=None):
-    """Encripta un archivo .txt usando DES - Misma lógica de rutas que Hill Cipher"""
     try:
         # Decodificar llave
         llave_bytes = base64.b64decode(llave_base64)
@@ -61,7 +60,7 @@ def encriptar_archivo_txt(plaintext_filename, llave_base64, ciphertext_filename=
         # Determinar nombre de salida (igual que Hill Cipher)
         if ciphertext_filename is None:
             # Usar el mismo nombre pero con extensión .enc
-            ciphertext_filename = str(Path(plaintext_filename).stem) + '.txt'
+            ciphertext_filename = str(Path(plaintext_filename).stem) + '.enc'
         
         # Construir ruta completa de salida (igual que Hill Cipher)
         ruta_completa_salida = BASE_DIR / ciphertext_filename
@@ -82,7 +81,6 @@ def encriptar_archivo_txt(plaintext_filename, llave_base64, ciphertext_filename=
         return None
 
 def descifrar_archivo(ciphertext_filename, llave_base64, plaintext_filename=None):
-    """Descifra un archivo .enc - Misma lógica de rutas que Hill Cipher"""
     try:
         # Decodificar llave
         llave_bytes = base64.b64decode(llave_base64)
@@ -120,7 +118,7 @@ def descifrar_archivo(ciphertext_filename, llave_base64, plaintext_filename=None
 
         # Determinar nombre de salida (igual que Hill Cipher)
         if plaintext_filename is None:
-            if Path(ciphertext_filename).suffix == '.txt':
+            if Path(ciphertext_filename).suffix == '.enc':
                 nombre_base = Path(ciphertext_filename).stem
                 plaintext_filename = f"{nombre_base}_descifrado.txt"
             else:
@@ -186,24 +184,12 @@ def main() -> None:
                 _wait_key()
 
             case "3":
-<<<<<<< Updated upstream
                 key = input("Ingresa tu llave K: ")
                 filename = input("Ingresa el nombre de tu archivo cifrado: ")
 
                 if not _file_exists(filename):
                     print("El archivo cifrado no existe. Verifica la ruta.")
                     _wait_key()
-=======
-                key_base64 = input("\nEscribe la llave en base 64: ")
-                try:
-                    key = base64.b64decode(key_base64)
-                except Exception:
-                    print(">> La llave en base64 no es válida")
-                    continue
-
-                if not _is_valid_key(key):
-                    print(">> La llave DES debe tener exactamente 8 bytes (64 bits)")
->>>>>>> Stashed changes
                     continue
 
                 filename_decrypt = input("Ingresa el nombre con el que se guardara tu archivo descifrado (Enter para nombre automatico): ")
@@ -220,20 +206,6 @@ def main() -> None:
             case _:
                 print("Opcion no valida")
                 _wait_key()
-
-def main2() -> None:
-    print("Probando la conversión de binario a base64")
-    print(f"\n01000001 a base64: {binary_to_base64("01000001")}")
-    print(f"0100000101000010 a base64: {binary_to_base64("0100000101000010")}")
-    print(f"010000010100001001000011 a base64: {binary_to_base64("010000010100001001000011")}")
-    print(f"0100100001101111 a base64: {binary_to_base64("0100100001101111")}")
-    print(f"01001000011011110110110001100001 a base64: {binary_to_base64("01001000011011110110110001100001")}")
-    print("\nProbando la conversión de base64 a binario")
-    print(f"\nQQ== a binario: {base64_to_binary("QQ==")}")
-    print(f"QUI= a binario: {base64_to_binary("QUI=")}")
-    print(f"QUJD a binario: {base64_to_binary("QUJD")}")
-    print(f"SG8= a binario: {base64_to_binary("SG8=")}")
-    print(f"SG9sYQ== a binario: {base64_to_binary("SG9sYQ==")}")
 
 if __name__ == "__main__":
     main()
