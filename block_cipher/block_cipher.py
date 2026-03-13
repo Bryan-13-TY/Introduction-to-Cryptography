@@ -1,15 +1,13 @@
+import numpy as np
 import base64
 import msvcrt
 import os
 from pathlib import Path
 
-from Crypto.Random import get_random_bytes
 from Crypto.Cipher import DES
-from Crypto.Util.Padding import pad
-from Crypto.Util.Padding import unpad
+from Crypto.Util.Padding import pad, unpad
 
-# Usar el directorio actual de trabajo
-DIRECTORIO_ACTUAL = Path.cwd()
+BASE_DIR = Path(__file__).parent
 
 def _clean_console() -> None:
     os.system("cls" if os.name == "nt" else "clear")
@@ -19,133 +17,136 @@ def _wait_key() -> None:
     msvcrt.getch()
 
 def _file_exists(filename: str) -> bool:
-    # Busca el archivo en el directorio actual
-    ruta_completa = DIRECTORIO_ACTUAL / filename
-    existe = ruta_completa.exists()
-    if not existe:
-        print(f"Buscando en: {ruta_completa}")
-    return existe
-
-def _ruta_en_directorio_actual(filename: str) -> Path:
-    # Devuelve la ruta completa en el directorio actual
-    return DIRECTORIO_ACTUAL / filename
+   return Path(BASE_DIR / filename).exists()
 
 def key_random_generator() -> str:
     """Genera una llave DES de 8 bytes en base64"""
-    # Generar 8 bytes aleatorios
     llave_bytes = np.random.bytes(8)
-    
-    # Convertir a base64
     llave_base64 = base64.b64encode(llave_bytes).decode()
-    
-    print(f"🔑 Llave DES generada (base64): {llave_base64}")
-    print(f"   Bytes: {' '.join(f'{b:02X}' for b in llave_bytes)}")
-    
+    print(f"Llave DES generada (base64): {llave_base64}")
+    print(f"Bytes: {' '.join(f'{b:02X}' for b in llave_bytes)}")
     return llave_base64
 
-def encriptar_archivo_txt(ruta_txt, llave_base64, ruta_salida=None):
-    """Encripta un archivo .txt usando DES"""
+def encriptar_archivo_txt(plaintext_filename, llave_base64, ciphertext_filename=None):
+    """Encripta un archivo .txt usando DES - Misma lógica de rutas que Hill Cipher"""
     try:
-        # 1. Procesar la llave - ¡CORREGIDO!
+        # Decodificar llave
         llave_bytes = base64.b64decode(llave_base64)
-        
-        # Verificar que la llave tiene 8 bytes
         if len(llave_bytes) != 8:
-            print(f"❌ Error: La llave debe tener 8 bytes. Tiene: {len(llave_bytes)}")
+            print(f"Error: La llave debe tener 8 bytes. Tiene: {len(llave_bytes)}")
             return None
+
+        # Construir ruta completa como en Hill Cipher
+        ruta_completa_entrada = BASE_DIR / plaintext_filename
         
-        # 2. Verificar que el archivo de entrada existe
-        if not Path(ruta_txt).exists():
-            print(f"❌ Error: El archivo {ruta_txt} no existe")
+        # Verificar archivo de entrada
+        if not ruta_completa_entrada.exists():
+            print(f">> El archivo '{plaintext_filename}' no existe en {BASE_DIR}")
             return None
-        
-        # 3. Leer el archivo .txt
-        with open(ruta_txt, 'r', encoding='utf-8') as f:
+
+        # Leer archivo .txt (igual que Hill Cipher)
+        with open(ruta_completa_entrada, 'r', encoding='utf-8') as f:
             texto_plano = f.read()
-        
+
         datos_bytes = texto_plano.encode('utf-8')
-        
-        # 4. Generar IV aleatorio
+
+        # Generar IV
         iv = os.urandom(8)
-        
-        # 5. Encriptar - ¡CORREGIDO! (usar llave_bytes, no llave_base64)
+
+        # Encriptar
         cipher = DES.new(llave_bytes, DES.MODE_CBC, iv)
         datos_con_padding = pad(datos_bytes, DES.block_size)
         texto_cifrado = cipher.encrypt(datos_con_padding)
+
+        # Determinar nombre de salida (igual que Hill Cipher)
+        if ciphertext_filename is None:
+            # Usar el mismo nombre pero con extensión .enc
+            ciphertext_filename = str(Path(plaintext_filename).stem) + '.enc'
         
-        # 6. Guardar resultado (IV + datos cifrados)
-        if ruta_salida is None:
-            ruta_salida = str(Path(ruta_txt).stem) + '.enc'
-        
-        with open(ruta_salida, 'wb') as f:
-            # Guardamos el IV al principio del archivo (necesario para descifrar)
+        # Construir ruta completa de salida (igual que Hill Cipher)
+        ruta_completa_salida = BASE_DIR / ciphertext_filename
+
+        # Guardar resultado
+        with open(ruta_completa_salida, 'wb') as f:
             f.write(iv)
             f.write(texto_cifrado)
-        
-        print(f"✅ Archivo encriptado guardado en: {ruta_salida}")
-        print(f"   IV usado: {iv.hex()}")
-        print(f"   Tamaño cifrado: {len(texto_cifrado)} bytes")
-        
-        return ruta_salida
-        
+            
+        #print(f"Ruta completa: {ruta_completa_salida}")
+        #print(f"IV usado: {iv.hex()}")
+        print(f"Tamaño cifrado: {len(texto_cifrado)} bytes")
+
+        return str(ruta_completa_salida)
+
     except Exception as e:
-        print(f"❌ Error durante la encriptación: {e}")
+        print(f"Error durante la encriptacion: {e}")
         return None
 
-def descifrar_archivo(ruta_cifrado, llave_base64, ruta_salida=None):
-    """Descifra un archivo .enc y guarda el resultado como .txt"""
+def descifrar_archivo(ciphertext_filename, llave_base64, plaintext_filename=None):
+    """Descifra un archivo .enc - Misma lógica de rutas que Hill Cipher"""
     try:
-        # 1. Procesar la llave - ¡CORREGIDO!
+        # Decodificar llave
         llave_bytes = base64.b64decode(llave_base64)
-        
-        # Verificar que la llave tiene 8 bytes
         if len(llave_bytes) != 8:
-            print(f"❌ Error: La llave debe tener 8 bytes. Tiene: {len(llave_bytes)}")
+            print(f"Error: La llave debe tener 8 bytes. Tiene: {len(llave_bytes)}")
             return None
-        
-        # 2. Verificar que el archivo cifrado existe
-        if not Path(ruta_cifrado).exists():
-            print(f"❌ Error: El archivo {ruta_cifrado} no existe")
+
+        # Construir ruta completa de entrada (igual que Hill Cipher)
+        ruta_completa_entrada = BASE_DIR / ciphertext_filename
+
+        # Verificar archivo cifrado
+        if not ruta_completa_entrada.exists():
+            print(f">> El archivo '{ciphertext_filename}' no existe en {BASE_DIR}")
             return None
-        
-        # 3. Leer archivo cifrado
-        with open(ruta_cifrado, 'rb') as f:
-            # Los primeros 8 bytes son el IV
+
+        # Leer archivo cifrado
+        with open(ruta_completa_entrada, 'rb') as f:
             iv = f.read(8)
             texto_cifrado = f.read()
-        
-        # 4. Descifrar - ¡CORREGIDO! (usar llave_bytes, no llave_base64)
+
+        # Descifrar
         cipher = DES.new(llave_bytes, DES.MODE_CBC, iv)
         datos_descifrados = cipher.decrypt(texto_cifrado)
-        
-        # 5. Quitar padding
+
+        # Quitar padding
         try:
             datos_sin_padding = unpad(datos_descifrados, DES.block_size)
         except ValueError as e:
-            print(f"❌ Error de padding: {e}")
-            print("   Posiblemente la llave es incorrecta o el archivo está corrupto")
+            print(f"Error de padding: {e}")
+            print("Posiblemente la llave es incorrecta o el archivo esta corrupto")
             return None
-        
-        # 6. Convertir bytes a texto
+
+        # Convertir a texto
         texto_descifrado = datos_sin_padding.decode('utf-8')
+
+        # Determinar nombre de salida (igual que Hill Cipher)
+        if plaintext_filename is None:
+            if Path(ciphertext_filename).suffix == '.enc':
+                nombre_base = Path(ciphertext_filename).stem
+                plaintext_filename = f"{nombre_base}_descifrado.txt"
+            else:
+                plaintext_filename = str(Path(ciphertext_filename).stem) + '_descifrado.txt'
         
-        # 7. Guardar archivo .txt
-        if ruta_salida is None:
-            ruta_salida = str(Path(ruta_cifrado).stem) + '_descifrado.txt'
-        
-        with open(ruta_salida, 'w', encoding='utf-8') as f:
+        # Construir ruta completa de salida
+        ruta_completa_salida = BASE_DIR / plaintext_filename
+
+        # Guardar archivo .txt
+        with open(ruta_completa_salida, 'w', encoding='utf-8') as f:
             f.write(texto_descifrado)
-        
-        print(f"✅ Archivo descifrado guardado en: {ruta_salida}")
-        print(f"   Contenido: {texto_descifrado[:100]}..." if len(texto_descifrado) > 100 else f"   Contenido: {texto_descifrado}")
-        
-        return ruta_salida
-        
+
+        #print(f"Archivo descifrado guardado en: {plaintext_filename}")
+        #print(f"Ruta completa: {ruta_completa_salida}")
+        if len(texto_descifrado) > 100:
+            print("Archvo descifrado guardado.")
+            pass
+        else:
+            print(f"Contenido: {texto_descifrado}")
+
+        return str(ruta_completa_salida)
+
     except Exception as e:
-        print(f"❌ Error durante el descifrado: {e}")
+        print(f"Error durante el descifrado: {e}")
         return None
-
-
+    
 def main() -> None:
     while True:
         _clean_console()
@@ -153,56 +154,59 @@ def main() -> None:
 /*-------------------.
 | PERMUTATION CIPHER |
 `-------------------*/
-              
+
 >> Elija una de las opciones
-              
+
 1.- Generar una llave aleatoria
 2.- Cifrar el texto plano
 3.- Descifrar el texto cifrado
 4.- Salir
 """)
-        option = input("Opción: ")
-        
+        option = input("Opcion: ")
+
         match option:
             case "1":
-                random_key_generator()
+                key_random_generator()
                 _wait_key()
-                
+
             case "2":
                 key = input("Ingresa tu llave K: ")
                 filename = input("Ingresa el nombre de tu archivo: ")
-                
+
                 if not _file_exists(filename):
-                    print("❌ El archivo no existe")
+                    print("El archivo no existe. Verifica la ruta.")
                     _wait_key()
                     continue
-                
-                filename_encrypt = input("Ingresa el nombre con el que se guardará tu archivo cifrado (Enter para nombre automático): ")
+
+                filename_encrypt = input("Ingresa el nombre con el que se guardara tu archivo cifrado (Enter para nombre automatico): ")
                 if not filename_encrypt:
                     filename_encrypt = None
-                
+
                 encriptar_archivo_txt(filename, key, filename_encrypt)
                 _wait_key()
-                
+
             case "3":
                 key = input("Ingresa tu llave K: ")
                 filename = input("Ingresa el nombre de tu archivo cifrado: ")
-                
+
                 if not _file_exists(filename):
-                    print("❌ El archivo cifrado no existe")
+                    print("El archivo cifrado no existe. Verifica la ruta.")
                     _wait_key()
                     continue
-                
-                filename_decrypt = input("Ingresa el nombre con el que se guardará tu archivo descifrado (Enter para nombre automático): ")
+
+                filename_decrypt = input("Ingresa el nombre con el que se guardara tu archivo descifrado (Enter para nombre automatico): ")
                 if not filename_decrypt:
                     filename_decrypt = None
-                
+
                 descifrar_archivo(filename, key, filename_decrypt)
                 _wait_key()
+
             case "4":
+                print("¡Hasta luego!")
                 break
+
             case _:
-                print("❌ Opción no válida")
+                print("Opcion no valida")
                 _wait_key()
 
 if __name__ == "__main__":
