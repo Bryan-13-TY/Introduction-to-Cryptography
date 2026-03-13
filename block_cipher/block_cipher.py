@@ -1,11 +1,12 @@
-import numpy as np
 import base64
 import msvcrt
 import os
 from pathlib import Path
 
+from Crypto.Random import get_random_bytes
 from Crypto.Cipher import DES
-from Crypto.Util.Padding import pad, unpad
+from Crypto.Util.Padding import pad
+from Crypto.Util.Padding import unpad
 
 BASE_DIR = Path(__file__).parent
 
@@ -21,181 +22,133 @@ def _wait_key() -> None:
 def _file_exists(filename: str) -> bool:
     return Path(BASE_DIR / filename).exists()
 
-def key_random_generator() -> str:
-    """Genera una llave DES de 8 bytes en base64"""
-    # Generar 8 bytes aleatorios
-    llave_bytes = np.random.bytes(8)
-    
-    # Convertir a base64
-    llave_base64 = base64.b64encode(llave_bytes).decode()
-    
-    print(f"🔑 Llave DES generada (base64): {llave_base64}")
-    print(f"   Bytes: {' '.join(f'{b:02X}' for b in llave_bytes)}")
-    
-    return llave_base64
 
-def encriptar_archivo_txt(ruta_txt, llave_base64, ruta_salida=None):
-    """Encripta un archivo .txt usando DES"""
-    try:
-        # 1. Procesar la llave - ¡CORREGIDO!
-        llave_bytes = base64.b64decode(llave_base64)
-        
-        # Verificar que la llave tiene 8 bytes
-        if len(llave_bytes) != 8:
-            print(f"❌ Error: La llave debe tener 8 bytes. Tiene: {len(llave_bytes)}")
-            return None
-        
-        # 2. Verificar que el archivo de entrada existe
-        if not Path(ruta_txt).exists():
-            print(f"❌ Error: El archivo {ruta_txt} no existe")
-            return None
-        
-        # 3. Leer el archivo .txt
-        with open(ruta_txt, 'r', encoding='utf-8') as f:
-            texto_plano = f.read()
-        
-        datos_bytes = texto_plano.encode('utf-8')
-        
-        # 4. Generar IV aleatorio
-        iv = os.urandom(8)
-        
-        # 5. Encriptar - ¡CORREGIDO! (usar llave_bytes, no llave_base64)
-        cipher = DES.new(llave_bytes, DES.MODE_CBC, iv)
-        datos_con_padding = pad(datos_bytes, DES.block_size)
-        texto_cifrado = cipher.encrypt(datos_con_padding)
-        
-        # 6. Guardar resultado (IV + datos cifrados)
-        if ruta_salida is None:
-            ruta_salida = str(Path(ruta_txt).stem) + '.enc'
-        
-        with open(ruta_salida, 'wb') as f:
-            # Guardamos el IV al principio del archivo (necesario para descifrar)
-            f.write(iv)
-            f.write(texto_cifrado)
-        
-        print(f"✅ Archivo encriptado guardado en: {ruta_salida}")
-        print(f"   IV usado: {iv.hex()}")
-        print(f"   Tamaño cifrado: {len(texto_cifrado)} bytes")
-        
-        return ruta_salida
-        
-    except Exception as e:
-        print(f"❌ Error durante la encriptación: {e}")
-        return None
+def _is_valid_key(key: bytes) -> bool:
+    return len(key) == 8
 
-def descifrar_archivo(ruta_cifrado, llave_base64, ruta_salida=None):
-    """Descifra un archivo .enc y guarda el resultado como .txt"""
-    try:
-        # 1. Procesar la llave - ¡CORREGIDO!
-        llave_bytes = base64.b64decode(llave_base64)
+
+def _is_valid_file_size(filename: str) -> bool:
+    size = os.path.getsize(BASE_DIR / filename)
+    return size > 100 * 1024
+
+
+def base64_to_binary(base64_str: str) -> str:
+    decoded = base64.b64decode(base64_str)
+    binary = "".join(format(byte, "08b") for byte in decoded)
+    return binary
+
+
+def binary_to_base64(binary_str: str) -> str:
+    data = int(binary_str, 2).to_bytes((len(binary_str) + 7) // 8, "big")
+    encode = base64.b64encode(data)
+    return encode.decode()
+
+
+def random_key_generator() -> bytes:
+    key = get_random_bytes(8)
+    key_base64 = base64.b64encode(key).decode()
+    print(f"\nLlave DES (Base64): {key_base64}")
+    return key
+
+
+def encrypt_file(key: bytes, plaintext_file: str, ciphertext_file) -> None:
+    with open(BASE_DIR / plaintext_file, "rb") as f:
+        data = f.read()
+
+    cipher = DES.new(key, DES.MODE_ECB)
+    ciphertext = cipher.encrypt(pad(data, 8))
+
+    with open(BASE_DIR / ciphertext_file, "wb") as f:
+        f.write(base64.b64encode(ciphertext))
+
+    print("Archivo encriptado")
+
+
+def decrypt_file(key: bytes, ciphertext_file: str, output_file: str) -> None:
+    with open(BASE_DIR / ciphertext_file, "rb") as f:
+        data = base64.b64decode(f.read())
+
+    cipher = DES.new(key, DES.MODE_ECB)
+    plaintext = unpad(cipher.decrypt(data), 8)
+
+    with open(BASE_DIR / output_file, "wb") as f:
+        f.write(plaintext)
         
-        # Verificar que la llave tiene 8 bytes
-        if len(llave_bytes) != 8:
-            print(f"❌ Error: La llave debe tener 8 bytes. Tiene: {len(llave_bytes)}")
-            return None
-        
-        # 2. Verificar que el archivo cifrado existe
-        if not Path(ruta_cifrado).exists():
-            print(f"❌ Error: El archivo {ruta_cifrado} no existe")
-            return None
-        
-        # 3. Leer archivo cifrado
-        with open(ruta_cifrado, 'rb') as f:
-            # Los primeros 8 bytes son el IV
-            iv = f.read(8)
-            texto_cifrado = f.read()
-        
-        # 4. Descifrar - ¡CORREGIDO! (usar llave_bytes, no llave_base64)
-        cipher = DES.new(llave_bytes, DES.MODE_CBC, iv)
-        datos_descifrados = cipher.decrypt(texto_cifrado)
-        
-        # 5. Quitar padding
-        try:
-            datos_sin_padding = unpad(datos_descifrados, DES.block_size)
-        except ValueError as e:
-            print(f"❌ Error de padding: {e}")
-            print("   Posiblemente la llave es incorrecta o el archivo está corrupto")
-            return None
-        
-        # 6. Convertir bytes a texto
-        texto_descifrado = datos_sin_padding.decode('utf-8')
-        
-        # 7. Guardar archivo .txt
-        if ruta_salida is None:
-            ruta_salida = str(Path(ruta_cifrado).stem) + '_descifrado.txt'
-        
-        with open(ruta_salida, 'w', encoding='utf-8') as f:
-            f.write(texto_descifrado)
-        
-        print(f"✅ Archivo descifrado guardado en: {ruta_salida}")
-        print(f"   Contenido: {texto_descifrado[:100]}..." if len(texto_descifrado) > 100 else f"   Contenido: {texto_descifrado}")
-        
-        return ruta_salida
-        
-    except Exception as e:
-        print(f"❌ Error durante el descifrado: {e}")
-        return None
+    print("Archivo desencriptado")
+
 
 def main() -> None:
     while True:
         _clean_console()
         print("""
-/*-------------------.
-| PERMUTATION CIPHER |
-`-------------------*/
+/*-------------.
+| BLOCK CIPHER |
+`-------------*/
               
 >> Elija una de las opciones
               
-1.- Generar una llave aleatoria
+1.- Crear una llave para DES 
 2.- Cifrar el texto plano
 3.- Descifrar el texto cifrado
 4.- Salir 
 """)
         option = input("Opción: ")
-        
         match option:
             case "1":
-                key_random_generator()
+                random_key_generator()
                 _wait_key()
-                
             case "2":
-                key = input("Ingresa tu llave K: ")
-                filename = input("Ingresa el nombre de tu archivo: ")
-                
-                if not _file_exists(filename):
-                    print("❌ El archivo no existe")
-                    _wait_key()
+                key_base64 = input("\nEscribe la llave en base 64: ")
+                try:
+                    key = base64.b64decode(key_base64)
+                except Exception:
+                    print(">> La llave en base64 no es válida")
                     continue
-                
-                filename_encrypt = input("Ingresa el nombre con el que se guardará tu archivo cifrado (Enter para nombre automático): ")
-                if not filename_encrypt:
-                    filename_encrypt = None
-                
-                encriptar_archivo_txt(filename, key, filename_encrypt)
+
+                if not _is_valid_key(key):
+                    print(">> La llave DES debe tener exactamente 8 bytes (64 bits)")
+                    continue
+
+                infile = input("Escribe el nombre del archivo con el 'plaintext': ")
+                if not _file_exists(infile):
+                    print(">> El archivo con el 'plaintext' no existe")
+                    continue
+                if not _is_valid_file_size(infile):
+                    print(">> El archivo debe ser mayor a 100 KB")
+                    continue
+
+                outfile = input("Escribe el nombre del archivo donde se almacenará el 'ciphertext': ")
+
+                encrypt_file(key, infile, outfile)
                 _wait_key()
-                
             case "3":
-                key = input("Ingresa tu llave K: ")
-                filename = input("Ingresa el nombre de tu archivo cifrado: ")
-                
-                if not _file_exists(filename):
-                    print("❌ El archivo cifrado no existe")
-                    _wait_key()
+                key_base64 = input("\nEscribe la llave en base 64: ")
+                try:
+                    key = base64.b64decode(key_base64)
+                except Exception:
+                    print(">> La llave en base64 no es válida")
                     continue
                 
-                filename_decrypt = input("Ingresa el nombre con el que se guardará tu archivo descifrado (Enter para nombre automático): ")
-                if not filename_decrypt:
-                    filename_decrypt = None
+                if not _is_valid_key(key):
+                    print(">> La llave DES debe tener exactamente 8 bytes (64 bits)")
+                    continue
+
+                infile = input("Escribe el nombre del archivo con el 'ciphertext': ")
+                if not _file_exists(infile):
+                    print(">> El archivo con el 'ciphertext' no existe")
+                    continue
+                if not _is_valid_file_size(infile):
+                    print(">> El archivo debe ser mayor a 100 KB")
+                    continue
                 
-                descifrar_archivo(filename, key, filename_decrypt)
+                outfile = input("Escribe el nombre del archivo donde se almacenará el 'plaintext': ")
+                
+                decrypt_file(key, infile, outfile)
                 _wait_key()
-                
             case "4":
-                print("👋 ¡Hasta luego!")
                 break
-                
             case _:
-                print("❌ Opción no válida")
+                print(">> Opción no válida")
                 _wait_key()
 
 if __name__ == "__main__":
