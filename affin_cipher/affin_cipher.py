@@ -301,5 +301,9 @@ def main() -> None:
                 print(">> Opción no válida")
                 _wait_key()
 
+
+def main2() -> None:
+    print(_coprime_numbers(21))
+
 if __name__ == "__main__":
-    main()
+    main2()
