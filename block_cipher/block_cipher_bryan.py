@@ -103,18 +103,22 @@ def main() -> None:
                     key = base64.b64decode(key_base64)
                 except Exception:
                     print(">> La llave en base64 no es válida")
+                    _wait_key()
                     continue
 
                 if not _is_valid_key(key):
                     print(">> La llave DES debe tener exactamente 8 bytes (64 bits)")
+                    _wait_key()
                     continue
 
                 infile = input("Escribe el nombre del archivo con el 'plaintext': ")
                 if not _file_exists(infile):
                     print(">> El archivo con el 'plaintext' no existe")
+                    _wait_key()
                     continue
                 if not _is_valid_file_size(infile):
                     print(">> El archivo debe ser mayor a 100 KB")
+                    _wait_key()
                     continue
 
                 outfile = input("Escribe el nombre del archivo donde se almacenará el 'ciphertext': ")
@@ -127,18 +131,22 @@ def main() -> None:
                     key = base64.b64decode(key_base64)
                 except Exception:
                     print(">> La llave en base64 no es válida")
+                    _wait_key()
                     continue
 
                 if not _is_valid_key(key):
                     print(">> La llave DES debe tener exactamente 8 bytes (64 bits)")
+                    _wait_key()
                     continue
 
                 infile = input("Escribe el nombre del archivo con el 'ciphertext': ")
                 if not _file_exists(infile):
                     print(">> El archivo con el 'ciphertext' no existe")
+                    _wait_key()
                     continue
                 if not _is_valid_file_size(infile):
                     print(">> El archivo debe ser mayor a 100 KB")
+                    _wait_key()
                     continue
                 
                 outfile = input("Escribe el nombre del archivo donde se almacenará el 'plaintext': ")
