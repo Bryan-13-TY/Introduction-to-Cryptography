@@ -55,11 +55,13 @@ def encrypt_file(key: bytes, plaintext_file: str, ciphertext_file) -> None:
     with open(BASE_DIR / plaintext_file, "rb") as f:
         data = f.read()
 
-    cipher = DES.new(key, DES.MODE_ECB)
+    iv = get_random_bytes(8)  # Bloque de 8 bytes para DES
+    cipher = DES.new(key, DES.MODE_CBC, iv=iv)
+
     ciphertext = cipher.encrypt(pad(data, 8))
 
     with open(BASE_DIR / ciphertext_file, "wb") as f:
-        f.write(base64.b64encode(ciphertext))
+        f.write(base64.b64encode(iv + ciphertext))
 
     print("Archivo encriptado")
 
@@ -68,8 +70,11 @@ def decrypt_file(key: bytes, ciphertext_file: str, output_file: str) -> None:
     with open(BASE_DIR / ciphertext_file, "rb") as f:
         data = base64.b64decode(f.read())
 
-    cipher = DES.new(key, DES.MODE_ECB)
-    plaintext = unpad(cipher.decrypt(data), 8)
+    iv = data[:8]
+    ciphertext = data[8:]
+
+    cipher = DES.new(key, DES.MODE_CBC, iv=iv)
+    plaintext = unpad(cipher.decrypt(ciphertext), 8)
 
     with open(BASE_DIR / output_file, "wb") as f:
         f.write(plaintext)
