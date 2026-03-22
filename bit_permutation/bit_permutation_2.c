@@ -9,10 +9,11 @@ typedef enum {
     BIT_POS_OUT_OF_RANGE = -1
 } BitStatus;
 
+static void wait_key();
 static void print_binary(uint32_t num);
 BitStatus get_nth_bit_of_number(uint32_t num, int position, int *nht_bit);
 BitStatus set_nth_bit_of_number(uint32_t num, int position, uint32_t *new_num);
-void leading_zeros(unsigned int num, int *zeros);
+void leading_zeros(uint32_t num, int *zeros);
 
 int main(int argc, char const *argv[]) {
     int nth_bit = 0, position = 0, option = 0, zeros = 0;
@@ -44,11 +45,9 @@ int main(int argc, char const *argv[]) {
                 bit_status = get_nth_bit_of_number(num, position, &nth_bit);
                 if (BIT_POS_OUT_OF_RANGE == bit_status) printf("\n>>> Posicion fuera de rango");
                 if (BIT_OK == bit_status) {
-                    printf("\n>>> El bit en la posicion %d es: %d", position, nth_bit);
+                    printf(">>> El bit en la posicion %d es: %d", position, nth_bit);
                 }
-                printf("\nPresiona Enter para continuar...");
-                getchar();
-                getchar();
+                wait_key();
                 break;
             case 2:
                 printf("\n>> Escribe un numero (32 bits): ");
@@ -65,9 +64,7 @@ int main(int argc, char const *argv[]) {
                     printf("\n>>> %u -> ", new_num);
                     print_binary(new_num);
                 }
-                printf("\nPresiona Enter para continuar...");
-                getchar();
-                getchar();
+                wait_key();
                 break;
             case 3:
                 printf("\n>> Escribe un numero (32 bits): ");
@@ -77,22 +74,24 @@ int main(int argc, char const *argv[]) {
 
                 leading_zeros(num, &zeros);
                 printf("\n\n>>> Hay %d ceros a la izquierda del numero %u", zeros, num);
-                printf("\nPresiona Enter para continuar...");
-                getchar();
-                getchar();
+                wait_key();
                 break;
             case 4:
                 printf("\n>> Gracias por probar el programa");
                 break;
             default:
                 printf("\n>> Opcion no valida");
-                printf("\nPresiona Enter para continuar...");
-                getchar();
-                getchar();
+                wait_key();
                 break;
         }    
     } while (option != 4);
     return 0;
+}
+
+static void wait_key() {
+    printf("\n\nPresiona Enter para continuar...");
+    getchar();
+    getchar();
 }
 
 static void print_binary(uint32_t num) {
@@ -110,6 +109,7 @@ BitStatus get_nth_bit_of_number(uint32_t num, int position, int *nth_bit) {
 
 BitStatus set_nth_bit_of_number(uint32_t num, int position, uint32_t *new_num) {
     if (position < 0 || position >= BIT_SIZE) return BIT_POS_OUT_OF_RANGE;
+    
     uint32_t mask = 1U << position;
     *new_num = num | mask;
     return BIT_OK;
