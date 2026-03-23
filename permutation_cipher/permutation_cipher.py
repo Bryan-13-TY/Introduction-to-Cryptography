@@ -70,7 +70,10 @@ def permutation_random_generator(permutation_size: int) -> tuple[np.ndarray, np.
     return permutation, inverse_permutation
 
 
-def encrypt_permutation(plaintext: str, permutation_file: str) -> None:    
+def encrypt_permutation(file_plaintext: str, permutation_file: str) -> None:
+    with open(BASE_DIR / file_plaintext, "r", encoding="utf-8") as f:
+        plaintext = f.read()
+
     permutation = _recover_permutation_from_file(permutation_file)
     block_size = len(permutation)
     # FIXME No se deberían de usar variables globales, pero no veo otra forma de hacerlo
@@ -101,11 +104,17 @@ def encrypt_permutation(plaintext: str, permutation_file: str) -> None:
         aux_block = ""
 
     ciphertext = "".join(aux_plaintext_blocks)
+
+    with open(BASE_DIR / "ciphertext.txt", "w", encoding="utf-8") as f:
+        f.write(ciphertext)
     
     print(f"\nEl texto cifrado es el siguiente:\n\n{ciphertext}")
 
 
-def decrypt_permutation(ciphertext: str, permutation_file: str) -> None:
+def decrypt_permutation(file_ciphertext: str, permutation_file: str) -> None:
+    with open(BASE_DIR / file_ciphertext, "r", encoding="utf-8") as f:
+        ciphertext = f.read()
+
     permutation = _recover_permutation_from_file(permutation_file)
     inverse_permutation = _inverse_permutation_generator(permutation)
     block_size = len(permutation)
@@ -155,10 +164,12 @@ def main() -> None:
                 permutation_size = input("\nIngresa el tamaño que tendrá la permutación: ")
                 if not permutation_size.isdigit():
                     print(">> Debe ser un número")
-                    return
+                    _wait_key()
+                    continue
                 if not int(permutation_size) >= 3:
                     print(">> Deber ser mayor o igual a 3")
-                    return
+                    _wait_key()
+                    continue
                 
                 (
                     permutation,
@@ -169,23 +180,33 @@ def main() -> None:
                 print(f"\nY su inversa π^-1(x):\n\n", inverse_permutation)               
                 _wait_key()
             case "2":
-                plaintext = input("\nIngresa el 'plaintext' M: ")
+                file_plaintext = input("\nIngresa el nombre del archivo con el 'plaintext' M: ")
+                if not _file_exists(file_plaintext):
+                    print(">> El archivo con el 'plaintext' no existe")
+                    _wait_key()
+                    continue
                 file_permutation = input("Escribe el nombre del archivo con la permutación a usar: ")
                 if not _file_exists(file_permutation):
                     print(">> El archivo con la 'permutación' no existe")
-                    return
+                    _wait_key()
+                    continue
                 
-                encrypt_permutation(plaintext, file_permutation)
+                encrypt_permutation(file_plaintext, file_permutation)
                 _wait_key()
                 pass
             case "3":
-                ciphertext = input("\nIngresa el 'ciphertext' C: ")
+                file_ciphertext = input("\nIngresa el nombre del archivo con el 'ciphertext' C: ")
+                if not _file_exists(file_ciphertext):
+                    print(">> El archivo con el 'ciphertext' no existe")
+                    _wait_key()
+                    continue
                 file_permutation = input("Escribe el nombre del archivo con la permutación a usar: ")
                 if not _file_exists(file_permutation):
                     print(">> El archivo con la 'permutación' no existe")
-                    return
+                    _wait_key()
+                    continue
 
-                decrypt_permutation(ciphertext, file_permutation)
+                decrypt_permutation(file_ciphertext, file_permutation)
                 _wait_key()
             case "4":
                 break
