@@ -4,7 +4,6 @@ import msvcrt
 import os
 
 BASE_DIR = Path(__file__).parent
-SIZE_PLAINTEXT = 0
 
 def _clean_console() -> None:
     os.system("cls" if os .name == "nt" else "clear")
@@ -76,9 +75,8 @@ def encrypt_permutation(file_plaintext: str, permutation_file: str) -> None:
 
     permutation = _recover_permutation_from_file(permutation_file)
     block_size = len(permutation)
-    # FIXME No se deberían de usar variables globales, pero no veo otra forma de hacerlo
-    global SIZE_PLAINTEXT
-    SIZE_PLAINTEXT = len(plaintext)
+    
+    size_plaintext = len(plaintext)  # Tamaño original del plaintext
     
     # Padding con X, para asegurar la dividión en bloques de 'block_size'
     while len(plaintext) % len(permutation) != 0:
@@ -105,13 +103,15 @@ def encrypt_permutation(file_plaintext: str, permutation_file: str) -> None:
 
     ciphertext = "".join(aux_plaintext_blocks)
 
-    with open(BASE_DIR / "ciphertext.txt", "w", encoding="utf-8") as f:
+    with open(BASE_DIR / f"{size_plaintext}_ciphertext.txt", "w", encoding="utf-8") as f:
         f.write(ciphertext)
     
     print(f"\nEl texto cifrado es el siguiente:\n\n{ciphertext}")
 
 
 def decrypt_permutation(file_ciphertext: str, permutation_file: str) -> None:
+    original_size = int(file_ciphertext.split("_")[0])
+
     with open(BASE_DIR / file_ciphertext, "r", encoding="utf-8") as f:
         ciphertext = f.read()
 
@@ -140,7 +140,7 @@ def decrypt_permutation(file_ciphertext: str, permutation_file: str) -> None:
 
     plaintext = "".join(aux_ciphertex_blocks)
 
-    print(f"\nEl texto original recuperado es el siguiente:\n\n{plaintext[:SIZE_PLAINTEXT]}")
+    print(f"\nEl texto original recuperado es el siguiente:\n\n{plaintext[:original_size]}")
 
 
 def main() -> None:
