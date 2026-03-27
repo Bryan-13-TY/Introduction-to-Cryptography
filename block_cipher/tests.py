@@ -3,8 +3,8 @@ from pathlib import Path
 BASE_DIR = Path(__file__).parent
 
 def files_generator() -> None:
-    with open(BASE_DIR / "test.txt", "w") as f:
-        f.write("AJD" * 200000)
+    with open(BASE_DIR / "test_prueba.txt", "w") as f:
+        f.write("Rodrigo" * 1000000)
 
 def main() -> None:
     files_generator()

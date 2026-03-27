@@ -53,6 +53,6 @@ void exercise_6(unsigned char data2, unsigned char mask) {
 
 int main(int argc, char const *argv[]) {
     //exercise_6('^', 0x0F);
-    print_binary('^');
+    print_binary('X');
     return 0;
 }
