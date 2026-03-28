@@ -19,13 +19,13 @@ static void generate_textfile_name(char name[], int max_size, int num_bits);
 static SBoxStatus store_permutation(int size, int array[size], char textfile_name[]);
 SBoxStatus sbox_generator(int n);
 static void read_string(int size, char string[size]);
-static void print_binary(char c, int num_bits);
 static unsigned char get_MSB(char c);
 static unsigned char get_LSB(char c);
 static unsigned char shuffle_bits(unsigned char high_nibble, unsigned char low_nibble);
-static SBoxStatus load_sbox(char textfile_name[], int sbox[]);
+static SBoxStatus load_sbox(char textfile_name[], int sbox[], int bits);
 static int hex_to_int(char c);
-SBoxStatus sbox_4_8bits(char M[]);
+SBoxStatus sbox_4bits(char M[]);
+SBoxStatus sbox_8bits(char M[]);
 
 int main(int argc, char const *argv[]) {
     int option = 0, option_bit  = 0, n = 0;
@@ -56,9 +56,9 @@ int main(int argc, char const *argv[]) {
                 
                 sbox_status = sbox_generator(n);
                 if (SBOX_OK == sbox_status) printf("\n>>> La S-Box se guardo correctamente");
-                if (SBOX_OUT_OF_RANGE == sbox_status) printf("\n>>> Deber estar entre 2 y 4");
-                if (SBOX_MEMORY_ERROR == sbox_status) printf("\n>> Hubo un error al reservar memoria para la S-Box");
-                if (SBOX_OPEN_FILE_ERROR == sbox_status) printf("\n>> Hubo un error al abrir el archivo de la S-Box");
+                if (SBOX_OUT_OF_RANGE == sbox_status) printf("\n>>> Debe ser 2 o 3");
+                if (SBOX_MEMORY_ERROR == sbox_status) printf("\n>>> Hubo un error al reservar memoria para la S-Box");
+                if (SBOX_OPEN_FILE_ERROR == sbox_status) printf("\n>>> Hubo un error al abrir el archivo de la S-Box");
                 wait_key();
                 break;
             case 2:
@@ -73,9 +73,12 @@ int main(int argc, char const *argv[]) {
 
                 switch (option_bit) {
                     case 1:
-                        sbox_4_8bits(M);
+                        sbox_status = sbox_4bits(M);
+                        if (sbox_status != SBOX_OK) printf("\n>>> Hubo un error al cargar la S-Box de 4 bits");
                         break;
                     case 2:
+                        sbox_status = sbox_8bits(M);
+                        if (sbox_status != SBOX_OK) printf("\n>>> Hubo un error al cargar la S-Box de 8 bits");
                         break;
                     default:
                         printf("\n>> Opcion no valida");
@@ -196,6 +199,12 @@ SBoxStatus sbox_generator(int n) {
     return sbox_status;
 }
 
+/**
+ * @brief Lee una cadena de caracteres desde el teclado.
+ * 
+ * @param size Tamaño del arreglo de la cadena.
+ * @param string Cadena leida.
+ */
 static void read_string(int size, char string[size]) {
     if (fgets(string, size, stdin)) {
         string[strcspn(string, "\n")] = '\0';
@@ -204,20 +213,33 @@ static void read_string(int size, char string[size]) {
     }
 }
 
-static void print_binary(char c, int num_bits) {
-    for (int i = num_bits - 1; i >= 0; i--) {
-        printf("%u", (c >> i) & 1);
-    }
-}
-
+/**
+ * @brief Obtiene el nibble alto (4 bits más significativos) de un carácter.
+ * 
+ * @param c Cualquier carácter.
+ */
 static unsigned char get_MSB(char c) {
     return (c >> 4) & 0x0F;
 }
 
+/**
+ * @brief Obtiene el nibble bajo (4 bits menos significativos) de un carácter.
+ * 
+ * @param c Cualquier carácter.
+ */
 static unsigned char get_LSB(char c) {
     return c & 0x0F;
 }
 
+/**
+ * @brief Combina el nibble alto y bajo en un carácter.
+ * 
+ * @param high_nibble Nibble alto de un carácter.
+ * @param low_nibble Nibble bajo de un carácter.
+ * 
+ * @return
+ * Carácter resultante.
+ */
 static unsigned char shuffle_bits(unsigned char high_nibble, unsigned char low_nibble) {
     return (high_nibble << 4) | low_nibble;
 }
@@ -233,34 +255,45 @@ static int hex_to_int(char c) {
     return n;
 } 
 
-static SBoxStatus load_sbox(char textfile_name[], int sbox[]) {
+/**
+ * @brief Carga la S-Box desde un archivo de texto.
+ * 
+ * @param textfile_name Nombre del archivo.
+ * @param sbox Arreglo en donde se carga la S-Box.
+ */
+static SBoxStatus load_sbox(char textfile_name[], int sbox[], int bits) {
     FILE *fp = fopen(textfile_name, "r");
     if (!fp) return SBOX_OPEN_FILE_ERROR;
-    
-    char in, out;
+
     int input, output;
 
-    while (fscanf(fp, " %c -> %c", &in, &out) == 2) {
-        input = hex_to_int(in);
-        output = hex_to_int(out);
-        sbox[input] = output;
+    if (bits == 4) {    
+        char in, out;
+
+        while (fscanf(fp, " %c -> %c", &in, &out) == 2) {
+            input = hex_to_int(in);
+            output = hex_to_int(out);
+            sbox[input] = output;
+        }
+    }
+    else if (bits == 8) {
+        while (fscanf(fp, " %x -> %x", &input, &output) == 2) {
+            sbox[input] = output;
+        }
     }
 
     fclose(fp);
     return SBOX_OK;
 }
 
-SBoxStatus sbox_4_8bits(char M[]) {
-    unsigned char high_nibble, low_nibble;
-    unsigned char temp;
-    int sbox_4[16], sbox_8[256], new_high_nibble, new_low_nibble;
+SBoxStatus sbox_4bits(char M[]) {
+    unsigned char high_nibble, low_nibble, temp;
+    int sbox_4[16], new_high_nibble, new_low_nibble;
     size_t size_m = strlen(M);
     unsigned char MS[size_m];
 
-    SBoxStatus sbox_status = load_sbox("sbox_4bits.txt", sbox_4);
+    SBoxStatus sbox_status = load_sbox("sbox_4bits.txt", sbox_4, 4);
     if (sbox_status != SBOX_OK) return sbox_status;
-    
-    //load_sbox("sbox_8bits.txt", sbox_8);
     
     for (int i = 0; i < size_m; i++) {
         printf("\nM[%d] (%c) = %02x", i, (unsigned char)M[i], (unsigned char)M[i]);
@@ -282,6 +315,32 @@ SBoxStatus sbox_4_8bits(char M[]) {
     printf("\nLa cadena despues de la sustitucion es: ");
     for (int i = 0; i < size_m; i++) {
         printf("%x", MS[i]);
+    }
+
+    return SBOX_OK;
+}
+
+SBoxStatus sbox_8bits(char M[]) {
+    int sbox_8[256];
+    size_t size_m = strlen(M);
+    unsigned char MS[size_m], new_byte;
+
+    SBoxStatus sbox_status = load_sbox("sbox_8bits.txt", sbox_8, 8);
+    if (sbox_status != SBOX_OK) return sbox_status;
+
+    for (int i = 0; i < size_m; i++) {
+        printf("\nM[%d] (%c) = %02x", i, (unsigned char)M[i], (unsigned char)M[i]);
+
+        new_byte = sbox_8[(unsigned char)M[i]];
+
+        printf("\nResultado = %02x -> S(%02x) = %02x\n", (unsigned char)M[i], (unsigned char)M[i], new_byte);
+
+        MS[i] = new_byte;
+    }
+
+    printf("\nLa cadena despues de la sustitucion es: ");
+    for (int i = 0; i < size_m; i++) {
+        printf("%02x", MS[i]);
     }
 
     return SBOX_OK;
