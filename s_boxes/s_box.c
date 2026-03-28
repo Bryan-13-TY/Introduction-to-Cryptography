@@ -40,7 +40,7 @@ int main(int argc, char const *argv[]) {
 
         switch (option) {
             case 1:
-                printf("\n>> Escribe el tamano de la S-Box: ");
+                printf("\n>> Escribe el valor de n tal que l = 2^n: ");
                 scanf("%d", &n);
                 
                 sbox_status = sbox_generator(n);
