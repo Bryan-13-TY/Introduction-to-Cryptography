@@ -41,7 +41,7 @@ int main(int argc, char const *argv[]) {
         printf("`------*/\n\n");
         printf(">> Elije una de las opciones:\n\n");
         printf("1.- Generar una S-Box\n");
-        printf("2.- Opcion 2\n");
+        printf("2.- Sustitucion con una S-Box de 4 o 8 bits\n");
         printf("3.- Opcion 3\n");
         printf("4.- Opcion 4\n");
         printf("5.- Salir de programa\n\n");
