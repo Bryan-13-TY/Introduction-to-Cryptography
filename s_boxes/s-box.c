@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <string.h>
+#include <stdint.h>
 
 typedef enum {
     SBOX_OK = 0,
@@ -17,9 +18,19 @@ static void shuffle_array(int size, int array[size]);
 static void generate_textfile_name(char name[], int max_size, int num_bits);
 static SBoxStatus store_permutation(int size, int array[size], char textfile_name[]);
 SBoxStatus sbox_generator(int n);
+static void read_string(int size, char string[size]);
+static void print_binary(char c, int num_bits);
+static unsigned char get_MSB(char c);
+static unsigned char get_LSB(char c);
+static unsigned char shuffle_bits(unsigned char high_nibble, unsigned char low_nibble);
+static SBoxStatus load_sbox(char textfile_name[], int sbox[]);
+static int hex_to_int(char c);
+SBoxStatus sbox_4_8bits(char M[]);
 
 int main(int argc, char const *argv[]) {
-    int option = 0, n = 0;
+    int option = 0, option_bit  = 0, n = 0;
+    char M[200];
+    unsigned short int K;
     SBoxStatus sbox_status;
     srand(time(NULL));
 
@@ -51,6 +62,26 @@ int main(int argc, char const *argv[]) {
                 wait_key();
                 break;
             case 2:
+                printf("\n>> Escribe la cadena M: ");
+                read_string(sizeof(M), M);
+                printf("\n>> Elije una de las opciones:\n\n");
+                printf("1.- Para una S-Box de 4 bits\n");
+                printf("2.- Para una S-Box de 8 bits\n\n");
+                printf("Opcion: ");
+                scanf("%d", &option_bit);
+                clean_buffer();
+
+                switch (option_bit) {
+                    case 1:
+                        sbox_4_8bits(M);
+                        break;
+                    case 2:
+                        break;
+                    default:
+                        printf("\n>> Opcion no valida");
+                        break;
+                }
+
                 wait_key();
                 break;
             case 3:
@@ -145,7 +176,7 @@ static SBoxStatus store_permutation(int size, int array[size], char textfile_nam
 }
 
 SBoxStatus sbox_generator(int n) {
-    if (!(n >= 2 && n <= 4)) return SBOX_OUT_OF_RANGE;
+    if (!(n == 2 || n == 3)) return SBOX_OUT_OF_RANGE;
 
     int l = 1 << n;
     int size_permutation = 1 << l;
@@ -163,4 +194,95 @@ SBoxStatus sbox_generator(int n) {
     
     free(array);
     return sbox_status;
+}
+
+static void read_string(int size, char string[size]) {
+    if (fgets(string, size, stdin)) {
+        string[strcspn(string, "\n")] = '\0';
+    } else {
+        string[0] = '\0';
+    }
+}
+
+static void print_binary(char c, int num_bits) {
+    for (int i = num_bits - 1; i >= 0; i--) {
+        printf("%u", (c >> i) & 1);
+    }
+}
+
+static unsigned char get_MSB(char c) {
+    return (c >> 4) & 0x0F;
+}
+
+static unsigned char get_LSB(char c) {
+    return c & 0x0F;
+}
+
+static unsigned char shuffle_bits(unsigned char high_nibble, unsigned char low_nibble) {
+    return (high_nibble << 4) | low_nibble;
+}
+
+static int hex_to_int(char c) {
+    int n;
+    if (c >= '0' && c <= '9') {
+        n = c - '0';
+    } else {
+        n = c - 'A' + 10;
+    }
+
+    return n;
+} 
+
+static SBoxStatus load_sbox(char textfile_name[], int sbox[]) {
+    FILE *fp = fopen(textfile_name, "r");
+    if (!fp) return SBOX_OPEN_FILE_ERROR;
+    
+    char in, out;
+    int input, output;
+
+    while (fscanf(fp, " %c -> %c", &in, &out) == 2) {
+        input = hex_to_int(in);
+        output = hex_to_int(out);
+        sbox[input] = output;
+    }
+
+    fclose(fp);
+    return SBOX_OK;
+}
+
+SBoxStatus sbox_4_8bits(char M[]) {
+    unsigned char high_nibble, low_nibble;
+    unsigned char temp;
+    int sbox_4[16], sbox_8[256], new_high_nibble, new_low_nibble;
+    size_t size_m = strlen(M);
+    unsigned char MS[size_m];
+
+    SBoxStatus sbox_status = load_sbox("sbox_4bits.txt", sbox_4);
+    if (sbox_status != SBOX_OK) return sbox_status;
+    
+    //load_sbox("sbox_8bits.txt", sbox_8);
+    
+    for (int i = 0; i < size_m; i++) {
+        printf("\nM[%d] (%c) = %02x", i, (unsigned char)M[i], (unsigned char)M[i]);
+        
+        high_nibble = get_MSB(M[i]);
+        low_nibble = get_LSB(M[i]);
+        new_high_nibble = sbox_4[high_nibble];
+        new_low_nibble = sbox_4[low_nibble];
+        
+        printf("\nNibble alto = %x -> S(%x) = %x", high_nibble, high_nibble, new_high_nibble);
+        printf("\nNibble bajo = %x -> S(%x) = %x", low_nibble, low_nibble, new_low_nibble);
+
+        temp = shuffle_bits(new_high_nibble, new_low_nibble);
+        printf("\nResultado = %x\n", temp);
+
+        MS[i] = temp;
+    }
+
+    printf("\nLa cadena despues de la sustitucion es: ");
+    for (int i = 0; i < size_m; i++) {
+        printf("%x", MS[i]);
+    }
+
+    return SBOX_OK;
 }
