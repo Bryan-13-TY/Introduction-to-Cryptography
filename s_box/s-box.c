@@ -256,8 +256,7 @@ static void read_string(int size, char string[size]) {
  * 
  * @param c Un byte.
  * 
- * @return
- * Nibble alto del byte.
+ * @return Nibble alto del byte.
  */
 static unsigned char get_4MSB(char c) {
     return (c >> 4) & 0x0F;
@@ -268,8 +267,7 @@ static unsigned char get_4MSB(char c) {
  * 
  * @param c Un byte.
  * 
- * @return
- * Nibble bajo del byte.
+ * @return Nibble bajo del byte.
  */
 static unsigned char get_4LSB(char c) {
     return c & 0x0F;
@@ -281,8 +279,7 @@ static unsigned char get_4LSB(char c) {
  * @param high_nibble Nibble alto de un byte.
  * @param low_nibble Nibble bajo de un byte.
  * 
- * @return
- * Un Byte.
+ * @return Un Byte.
  */
 static unsigned char shuffle_bits(unsigned char high_nibble, unsigned char low_nibble) {
     return (high_nibble << 4) | low_nibble;
@@ -418,8 +415,7 @@ SBoxStatus sbox_8bits(char M[]) {
  * 
  * @param K Un número válido de 16 bits.
  * 
- * @return
- * Byte alto de dos bytes.
+ * @return Byte alto de dos bytes.
  */
 static unsigned char get_8MSB(unsigned short K) {
     return (K >> 8) & 0xFF;
@@ -430,8 +426,7 @@ static unsigned char get_8MSB(unsigned short K) {
  * 
  * @param K Un número válido de 16 bits.
  * 
- * @return
- * Byte bajo de dos bytes.
+ * @return Byte bajo de dos bytes.
  */
 static unsigned char get_8LSB(unsigned short K) {
     return K & 0XFF;
@@ -443,8 +438,7 @@ static unsigned char get_8LSB(unsigned short K) {
  * @param high_byte Byte alto de dos bytes.
  * @param low_byte Byte bajo de dos bytes.
  * 
- * @return
- * Dos bytes.
+ * @return Dos bytes.
  */
 static unsigned short shuffle_bytes(unsigned char high_byte, unsigned char low_byte) {
     return ((unsigned short)high_byte << 8) | low_byte;
