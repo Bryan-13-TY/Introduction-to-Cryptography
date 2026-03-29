@@ -345,8 +345,8 @@ static SBoxStatus load_sbox(char textfile_name[], int sbox[], int bits) {
  * - SBOX_OPEN_FILE_ERROR si hubo un error al cargar la S-Box.
  */
 SBoxStatus sbox_4bits(char M[]) {
-    unsigned char high_nibble, low_nibble, temp;
-    int sbox_4[16], new_high_nibble, new_low_nibble;
+    unsigned char high_nibble, low_nibble, temp, new_high_nibble, new_low_nibble;
+    int sbox_4[16];
     size_t size_m = strlen(M);
     unsigned char MS[size_m];
 
