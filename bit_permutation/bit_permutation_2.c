@@ -4,8 +4,7 @@
 
 #define BIT_SIZE 32
 
-typedef enum
-{
+typedef enum {
     BIT_OK = 0,
     BIT_POS_OUT_OF_RANGE = -1
 } BitStatus;
@@ -16,14 +15,12 @@ BitStatus get_nth_bit_of_number(uint32_t num, int position, int *nht_bit);
 BitStatus set_nth_bit_of_number(uint32_t num, int position, uint32_t *new_num);
 void leading_zeros(uint32_t num, int *zeros);
 
-int main(int argc, char const *argv[])
-{
+int main(int argc, char const *argv[]) {
     int nth_bit = 0, position = 0, option = 0, zeros = 0;
     uint32_t num = 0, new_num = 0;
     BitStatus bit_status;
 
-    do
-    {
+    do {
         printf("\033[2J\033[H");
         printf("/*----------------.\n");
         printf("| BIT PERMUTATION |\n");
@@ -36,8 +33,7 @@ int main(int argc, char const *argv[])
         printf("Opcion: ");
         scanf("%d", &option);
 
-        switch (option)
-        {
+        switch (option) {
         case 1:
             printf("\n>> Escribe un numero (32 bits): ");
             scanf("%u", &num);
@@ -47,12 +43,8 @@ int main(int argc, char const *argv[])
             scanf("%d", &position);
 
             bit_status = get_nth_bit_of_number(num, position, &nth_bit);
-            if (BIT_POS_OUT_OF_RANGE == bit_status)
-                printf("\n>>> Posicion fuera de rango");
-            if (BIT_OK == bit_status)
-            {
-                printf(">>> El bit en la posicion %d es: %d", position, nth_bit);
-            }
+            if (BIT_POS_OUT_OF_RANGE == bit_status) printf("\n>>> Posicion fuera de rango");
+            if (BIT_OK == bit_status) printf(">>> El bit en la posicion %d es: %d", position, nth_bit);
             wait_key();
             break;
         case 2:
@@ -64,10 +56,8 @@ int main(int argc, char const *argv[])
             scanf("%d", &position);
 
             bit_status = set_nth_bit_of_number(num, position, &new_num);
-            if (BIT_POS_OUT_OF_RANGE == bit_status)
-                printf("\n>>> Posicion fuera de rango");
-            if (BIT_OK == bit_status)
-            {
+            if (BIT_POS_OUT_OF_RANGE == bit_status) printf("\n>>> Posicion fuera de rango");
+            if (BIT_OK == bit_status) {
                 printf("\n>>> El nuevo numero es: %u", new_num);
                 printf("\n>>> %u -> ", new_num);
                 print_binary(new_num);
@@ -96,48 +86,38 @@ int main(int argc, char const *argv[])
     return 0;
 }
 
-static void wait_key()
-{
+static void wait_key() {
     printf("\n\nPresiona Enter para continuar...");
     getchar();
     getchar();
 }
 
-static void print_binary(uint32_t num)
-{
-    for (int i = 31; i >= 0; i--)
-    {
+static void print_binary(uint32_t num) {
+    for (int i = 31; i >= 0; i--) {
         printf("%u", (num >> i) & 1);
     }
 }
 
-BitStatus get_nth_bit_of_number(uint32_t num, int position, int *nth_bit)
-{
-    if (position < 0 || position >= BIT_SIZE)
-        return BIT_POS_OUT_OF_RANGE;
+BitStatus get_nth_bit_of_number(uint32_t num, int position, int *nth_bit) {
+    if (position < 0 || position >= BIT_SIZE) return BIT_POS_OUT_OF_RANGE;
 
     *nth_bit = (num >> position) & 1;
     return BIT_OK;
 }
 
-BitStatus set_nth_bit_of_number(uint32_t num, int position, uint32_t *new_num)
-{
-    if (position < 0 || position >= BIT_SIZE)
-        return BIT_POS_OUT_OF_RANGE;
+BitStatus set_nth_bit_of_number(uint32_t num, int position, uint32_t *new_num) {
+    if (position < 0 || position >= BIT_SIZE) return BIT_POS_OUT_OF_RANGE;
 
     uint32_t mask = 1U << position;
     *new_num = num | mask;
     return BIT_OK;
 }
 
-void leading_zeros(uint32_t num, int *zeros)
-{
+void leading_zeros(uint32_t num, int *zeros) {
     int count = 0;
 
-    for (int i = 31; i >= 0; i--)
-    {
-        if ((num >> i) & 1)
-        {
+    for (int i = 31; i >= 0; i--) {
+        if ((num >> i) & 1) {
             *zeros = count;
             return;
         }
