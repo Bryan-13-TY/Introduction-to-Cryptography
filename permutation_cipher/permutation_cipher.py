@@ -1,8 +1,25 @@
+"""Cifrado usando Permutation Cipher."""
+
 import numpy as np
+import numpy.typing as npt
 from pathlib import Path
 import msvcrt
 import os
+from typing import (
+    Callable,
+    TypeVar,
+    ParamSpec,
+)
+from functools import wraps
 
+__all__ = [
+    "permutation_random_generator",
+    "encrypt_permutation",
+    "decrypt_permutation",
+]
+
+P = ParamSpec("P")
+T = TypeVar("T")
 BASE_DIR = Path(__file__).parent
 
 def _clean_console() -> None:
@@ -18,58 +35,146 @@ def _file_exists(filename: str) -> bool:
     return Path(BASE_DIR / filename).exists()
 
 
-def _convert_permutation_to_string(permutation: np.ndarray) -> str:
-    str_permutation = ""
-    for p in permutation:
-        str_permutation += f"{p} "
-    return str_permutation.strip()
+def _validate_files(func: Callable[P, T]) -> Callable[P, T | None]:
+    """
+    Decorador que valida que los argumentos de tipo `str` correspondan
+    a archivos existentes.
+
+    Recorre los argumentos posicionales de la función decorada y
+    verifica si cada uno representa un archivo válido en el sistema.
+    Si alguno no existe, imprime un mensaje de error y evita la
+    ejecución de la función.
+
+    :param func: Función a decorar.
+    :type func: (Callable[P, T]) 
+    :return: Función envuelta que retorna el resultado original o
+             `None` si la validación falla.
+    :rtype: Callable[P, T | None].
+    """
+    @wraps(func)
+    def _wrapper(*args: P.args, **kwargs: P.kwargs) -> T | None:
+        for arg in args:
+            if isinstance(arg, str) and not _file_exists(arg):
+                print(f">> El archivo '{arg}' no existe")
+                return None
+            
+        return func(*args, **kwargs)
+    return _wrapper
 
 
-def _convert_permutation_to_array(str_permutation: str) -> np.ndarray:
-    recover_permutation = str_permutation.split()
-    array_permutation = np.array([int(p) for p in recover_permutation])
-    return array_permutation
+def _convert_permutation_to_string(permutation: npt.NDArray[np.int_]) -> str:
+    """
+    Convierte una permutación como array a un string.
+
+    :param permutation: Permutación como array.
+    :type permutation: npt.NDArray[np.int_]
+    :return: Permutación como string.
+    :rtype: str
+    """
+    return " ".join(map(str, permutation))
 
 
-def _recover_permutation_from_file(permutation_file: str) -> np.ndarray:
+def _convert_permutation_to_array(str_permutation: str) -> npt.NDArray[np.int_]:
+    """
+    Convierte una permutación como string a un array.
+
+    :param str_permutation: Permutación como string.
+    :type str_permutation: str
+    :return: Permutación como array.
+    :rtype: npt.NDArray[np.int_]
+    """
+    return np.array([int(p) for p in str_permutation.split()], dtype=np.int_)
+
+
+def _recover_permutation_from_file(permutation_file: str) -> npt.NDArray[np.int_]:
+    """
+    Carga una permutación desde un archivo de texto.
+
+    :param permutation_file: Archivo de texto con la permutación.
+    :type permutation_file: str
+    :return: Permutación como array.
+    :rtype: npt.NDArray[np.int_]
+    """
     with open(BASE_DIR / permutation_file, "r", encoding="utf-8") as f:
         permutation = f.read()
 
-    array_permutation = _convert_permutation_to_array(permutation)
-    return array_permutation
+    return _convert_permutation_to_array(permutation)
 
 
-def _save_permutation_in_file(permutation: np.ndarray) -> None:
+def _save_permutation_in_file(permutation: npt.NDArray[np.int_]) -> None:
+    """
+    Guarda una permutación en un archivo de texto. En el nombre del
+    archivo se indica el tamaño de la permutación como sigue
+    'permutation_SIZE.txt'.
+
+    :param permutation: Permutación como array.
+    :type permutation: npt.NDArray[np.int_]
+    """
     str_permutation = _convert_permutation_to_string(permutation)
-    try:
-        with open(BASE_DIR / f"permutation_{len(permutation)}.txt", "w", encoding="utf-8") as f:
-            f.write(str_permutation)
-    except FileNotFoundError:
-        print(f"El archivo con el 'permutation_{len(permutation)}.txt' no existe")
-        return
+
+    with open(BASE_DIR / f"permutation_{len(permutation)}.txt", "w", encoding="utf-8") as f:
+        f.write(str_permutation)
 
 
-def _permutation_generator(permutation_size: int) -> np.ndarray:
-    random_permutation = np.random.permutation(np.arange(1, permutation_size + 1))
-    return random_permutation
+def _permutation_generator(permutation_size: int) -> npt.NDArray[np.int_]:
+    """
+    Devuelve una permutación aleatoria de tamaño `permutation_size`.
+
+    :param permutation_size: Tamaño de la permutación.
+    :type permutation_size: int
+    :return: Permutación como array.
+    :rtype: npt.NDArray[np.int_]
+    """
+    return np.random.permutation(np.arange(1, permutation_size + 1))
 
 
-def _inverse_permutation_generator(random_permutation: np.ndarray) -> np.ndarray:
-    inverse_permutation = [
-        random_permutation.tolist().index(i) + 1
-        for i in range(1, len(random_permutation) + 1)
-    ]
-    return np.array(inverse_permutation)
+def _inverse_permutation_generator(
+        random_permutation: npt.NDArray[np.int_]
+    ) -> npt.NDArray[np.int_]:
+    """
+    Devuelve la permutación inversa.
+
+    :param random_permutation: Permutación como array.
+    :type random_permutation: npt.NDArray[np.int_]
+    :return: Permutación inversa como array.
+    :rtype: npt.NDArray[np.int_]
+    """
+    inverse = np.empty_like(random_permutation)
+
+    for i, p in enumerate(random_permutation):
+        inverse[p - 1] = i + 1
+
+    return inverse
 
 
-def permutation_random_generator(permutation_size: int) -> tuple[np.ndarray, np.ndarray]:
+def permutation_random_generator(
+        permutation_size: int
+    ) -> tuple[npt.NDArray[np.int_], npt.NDArray[np.int_]]:
+    """
+    Genera una permutación aleatoria y su inversa de tamaño `permutation_size`.
+
+    :param permutation_size: Tamaño de la permutación.
+    :type permutation_size: int
+    :return: Permutación aleatoria y su inversa.
+    :rtype: tuple[npt.NDArray[np.int_], npt.NDArray[np.int_]
+    """
     permutation = _permutation_generator(permutation_size)
     inverse_permutation = _inverse_permutation_generator(permutation)
     _save_permutation_in_file(permutation)
     return permutation, inverse_permutation
 
-
+@_validate_files
 def encrypt_permutation(file_plaintext: str, permutation_file: str) -> None:
+    """
+    Cifra un texto usando Permutation Cipher y lo guarda en un archivo
+    de texto. Toma el texto de un archivo de texto al igual que la
+    permutación a usar para el cifrado.
+
+    :param file_plaintext: Archivo con el texto a cifrar.
+    :type file_plaintext: str
+    :param permutation_file: Archivo con la permutación.
+    :type permutation_file: str 
+    """
     with open(BASE_DIR / file_plaintext, "r", encoding="utf-8") as f:
         plaintext = f.read()
 
@@ -108,8 +213,18 @@ def encrypt_permutation(file_plaintext: str, permutation_file: str) -> None:
     
     print(f"\nEl texto cifrado es el siguiente:\n\n{ciphertext}")
 
-
+@_validate_files
 def decrypt_permutation(file_ciphertext: str, permutation_file: str) -> None:
+    """
+    Descifra un texto usando Permutation Cipher e imprime el resultado.
+    Toma el texto de un archivo de texto al igual que la permutación
+    a usar para el descifrado.
+
+    :param file_ciphertext: Archivo con el texto a descifrar.
+    :type file_ciphertext: str
+    :param permutation_file: Archivo con la permutación.
+    :type permutation_file: str 
+    """
     original_size = int(file_ciphertext.split("_")[0])
 
     with open(BASE_DIR / file_ciphertext, "r", encoding="utf-8") as f:
@@ -181,30 +296,18 @@ def main() -> None:
                 _wait_key()
             case "2":
                 file_plaintext = input("\nIngresa el nombre del archivo con el 'plaintext' M: ")
-                if not _file_exists(file_plaintext):
-                    print(">> El archivo con el 'plaintext' no existe")
-                    _wait_key()
-                    continue
-                file_permutation = input("Escribe el nombre del archivo con la permutación a usar: ")
-                if not _file_exists(file_permutation):
-                    print(">> El archivo con la 'permutación' no existe")
-                    _wait_key()
-                    continue
+                file_permutation = input(
+                    "Escribe el nombre del archivo con la permutación a usar: "
+                )
                 
                 encrypt_permutation(file_plaintext, file_permutation)
                 _wait_key()
                 pass
             case "3":
                 file_ciphertext = input("\nIngresa el nombre del archivo con el 'ciphertext' C: ")
-                if not _file_exists(file_ciphertext):
-                    print(">> El archivo con el 'ciphertext' no existe")
-                    _wait_key()
-                    continue
-                file_permutation = input("Escribe el nombre del archivo con la permutación a usar: ")
-                if not _file_exists(file_permutation):
-                    print(">> El archivo con la 'permutación' no existe")
-                    _wait_key()
-                    continue
+                file_permutation = input(
+                    "Escribe el nombre del archivo con la permutación a usar: "
+                )
 
                 decrypt_permutation(file_ciphertext, file_permutation)
                 _wait_key()
