@@ -21,6 +21,7 @@ __all__ = [
 
 P = ParamSpec("P")
 T = TypeVar("T")
+
 _BASE_DIR = Path(__file__).parent
 
 def _clean_console() -> None:
