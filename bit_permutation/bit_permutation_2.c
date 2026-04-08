@@ -1,3 +1,9 @@
+/**
+ * Permutaciones de bits.
+ * 
+ * @author García Escamilla Bryan Alexis.
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -98,6 +104,17 @@ static void print_binary(uint32_t num) {
     }
 }
 
+/**
+ * @brief Obtiene el enésimo bit de un número de 32 bits.
+ * 
+ * @param num Número de 32 bits.
+ * @param position Posición del bit a obtener.
+ * @param nth_bit Puntero donde se almacena el bit.
+ * 
+ * @return
+ * - BIT_OK si se obtuvo correctamente.
+ * - BIT_POS_OUT_OF_RANGE si hubo un error en la posición del bit.
+ */
 BitStatus get_nth_bit_of_number(uint32_t num, int position, int *nth_bit) {
     if (position < 0 || position >= BIT_SIZE) return BIT_POS_OUT_OF_RANGE;
 
@@ -105,6 +122,17 @@ BitStatus get_nth_bit_of_number(uint32_t num, int position, int *nth_bit) {
     return BIT_OK;
 }
 
+/**
+ * @brief Enciende el enésimo bit de un número de 32 bits.
+ * 
+ * @param num Número de 32 bits.
+ * @param position Posición del bit a encender.
+ * @param new_num Puntero donde se almacena el número resultante.
+ * 
+ * @return
+ * - BIT_OK si se encendio correctamente.
+ * - BIT_POS_OUT_OF_RANGE si hubo un error en la posición del bit.
+ */
 BitStatus set_nth_bit_of_number(uint32_t num, int position, uint32_t *new_num) {
     if (position < 0 || position >= BIT_SIZE) return BIT_POS_OUT_OF_RANGE;
 
@@ -113,6 +141,12 @@ BitStatus set_nth_bit_of_number(uint32_t num, int position, uint32_t *new_num) {
     return BIT_OK;
 }
 
+/**
+ * @brief Cuenta los números a la izquierda de un número de 32 bits.
+ * 
+ * @param num Número de 32 bits.
+ * @param zeros Puntero donde se almacena el número de ceros.
+ */
 void leading_zeros(uint32_t num, int *zeros) {
     int count = 0;
 
