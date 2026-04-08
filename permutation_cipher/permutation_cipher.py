@@ -16,11 +16,12 @@ __all__ = [
     "permutation_random_generator",
     "encrypt_permutation",
     "decrypt_permutation",
+    "validate_files",
 ]
 
 P = ParamSpec("P")
 T = TypeVar("T")
-BASE_DIR = Path(__file__).parent
+_BASE_DIR = Path(__file__).parent
 
 def _clean_console() -> None:
     os.system("cls" if os .name == "nt" else "clear")
@@ -32,24 +33,24 @@ def _wait_key() -> None:
 
 
 def _file_exists(filename: str) -> bool:
-    return Path(BASE_DIR / filename).exists()
+    return Path(_BASE_DIR / filename).exists()
 
 
-def _validate_files(func: Callable[P, T]) -> Callable[P, T | None]:
+def validate_files(func: Callable[P, T]) -> Callable[P, T | None]:
     """
     Decorador que valida que los argumentos de tipo `str` correspondan
     a archivos existentes.
 
     Recorre los argumentos posicionales de la función decorada y
     verifica si cada uno representa un archivo válido en el sistema.
-    Si alguno no existe, imprime un mensaje de error y evita la
-    ejecución de la función.
+    Si alguno no existe, imprime un mensaje de error y al función
+    decorada no se ejecuta, retornando `None`.
 
     :param func: Función a decorar.
-    :type func: (Callable[P, T]) 
+    :type func: Callable[[Callable[P, T]], Callable[P, T | None]]
     :return: Función envuelta que retorna el resultado original o
              `None` si la validación falla.
-    :rtype: Callable[P, T | None].
+    :rtype: Callable[[Callable[P, T]], Callable[P, T | None]]
     """
     @wraps(func)
     def _wrapper(*args: P.args, **kwargs: P.kwargs) -> T | None:
@@ -95,7 +96,7 @@ def _recover_permutation_from_file(permutation_file: str) -> npt.NDArray[np.int_
     :return: Permutación como array.
     :rtype: npt.NDArray[np.int_]
     """
-    with open(BASE_DIR / permutation_file, "r", encoding="utf-8") as f:
+    with open(_BASE_DIR / permutation_file, "r", encoding="utf-8") as f:
         permutation = f.read()
 
     return _convert_permutation_to_array(permutation)
@@ -112,7 +113,7 @@ def _save_permutation_in_file(permutation: npt.NDArray[np.int_]) -> None:
     """
     str_permutation = _convert_permutation_to_string(permutation)
 
-    with open(BASE_DIR / f"permutation_{len(permutation)}.txt", "w", encoding="utf-8") as f:
+    with open(_BASE_DIR / f"permutation_{len(permutation)}.txt", "w", encoding="utf-8") as f:
         f.write(str_permutation)
 
 
@@ -163,7 +164,7 @@ def permutation_random_generator(
     _save_permutation_in_file(permutation)
     return permutation, inverse_permutation
 
-@_validate_files
+@validate_files
 def encrypt_permutation(file_plaintext: str, permutation_file: str) -> None:
     """
     Cifra un texto usando Permutation Cipher y lo guarda en un archivo
@@ -175,7 +176,7 @@ def encrypt_permutation(file_plaintext: str, permutation_file: str) -> None:
     :param permutation_file: Archivo con la permutación.
     :type permutation_file: str 
     """
-    with open(BASE_DIR / file_plaintext, "r", encoding="utf-8") as f:
+    with open(_BASE_DIR / file_plaintext, "r", encoding="utf-8") as f:
         plaintext = f.read()
 
     permutation = _recover_permutation_from_file(permutation_file)
@@ -208,12 +209,12 @@ def encrypt_permutation(file_plaintext: str, permutation_file: str) -> None:
 
     ciphertext = "".join(aux_plaintext_blocks)
 
-    with open(BASE_DIR / f"{size_plaintext}_ciphertext.txt", "w", encoding="utf-8") as f:
+    with open(_BASE_DIR / f"{size_plaintext}_ciphertext.txt", "w", encoding="utf-8") as f:
         f.write(ciphertext)
     
     print(f"\nEl texto cifrado es el siguiente:\n\n{ciphertext}")
 
-@_validate_files
+@validate_files
 def decrypt_permutation(file_ciphertext: str, permutation_file: str) -> None:
     """
     Descifra un texto usando Permutation Cipher e imprime el resultado.
@@ -227,7 +228,7 @@ def decrypt_permutation(file_ciphertext: str, permutation_file: str) -> None:
     """
     original_size = int(file_ciphertext.split("_")[0])
 
-    with open(BASE_DIR / file_ciphertext, "r", encoding="utf-8") as f:
+    with open(_BASE_DIR / file_ciphertext, "r", encoding="utf-8") as f:
         ciphertext = f.read()
 
     permutation = _recover_permutation_from_file(permutation_file)
