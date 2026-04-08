@@ -29,6 +29,7 @@ __all__ = [
 
 P = ParamSpec("P")
 T = TypeVar("T")
+
 _BASE_DIR = Path(__file__).parent
 
 def _clean_console() -> None:
@@ -94,7 +95,6 @@ def validate_file(textfile_param_name: str) -> Callable[[Callable[P, T]], Callab
                 return None
             
             filename = bound.arguments.get(textfile_param_name)
-
             if filename is None:
                 print(f">> No se encontró el parámetro '{textfile_param_name}'")
                 return None
