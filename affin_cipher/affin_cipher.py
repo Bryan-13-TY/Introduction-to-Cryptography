@@ -1,3 +1,5 @@
+"""Cifrado usando Affin Cipher."""
+
 import numpy as np
 import numpy.typing as npt
 import os
@@ -11,6 +13,14 @@ from typing import (
     TypeVar,
 )
 from functools import wraps
+
+__all__ = [
+    "key_generator_affin",
+    "encrypt_affin",
+    "decrypt_affin",
+    "validate_file",
+    "validate_key",
+]
 
 P = ParamSpec("P")
 T = TypeVar("T")
@@ -33,6 +43,29 @@ def _file_exists(filename: str) -> bool:
 
 
 def validate_file(textfile_param_name: str) -> Callable[[Callable[P, T]], Callable[P, T | None]]:
+    """
+    Crea un decorador que valida un archivo recibido como argumento
+    en la función decorada.
+
+    El decorador verifica que el parámetro especificado:
+    - Existe dentro de los argumentos de la función.
+    - Sea de tipo `str`.
+    - Corresponda a un archivo existente.
+
+    Usa `inspect.signature().bind()` para mapear `*args` y `**kwargs`
+    a los nombres de parámetros de la función.
+
+    Si alguna validación falla, se imprime un mensaje de error y la
+    función decorada no se ejecuta, retornando `None`.
+
+    :param textfile_param_name: Nombre del parámetro en la función
+                                decorada que representa el archivo
+                                a validar.
+    :type textfile_param_name: str
+    :return: Un decorador que envuelve la función original agregando
+             validaciones sobre el archivo indicado.
+    :rtype: Callable[[Callable[P, T]], Callable[P, T | None]]
+    """
     def _decorator(func: Callable[P, T]) -> Callable[P, T | None]:
         @wraps(func)
         def _wrapper(*args: P.args, **kwargs: P.kwargs) -> T | None:
@@ -70,17 +103,30 @@ def _get_char(unicode: int) -> str:
 
 
 def _gcd(a: int, b: int) -> int:
+    """Máximo común divisor usando el algoritmo extendido de Euclides."""
     a, b = abs(a), abs(b)
     while b != 0:
         a, b = b, a % b
     return a
 
 
-def _coprime_numbers(n: int) -> npt.NDArray[np.int_]:    
+def _coprime_numbers(n: int) -> npt.NDArray[np.int_]:
+    """
+    Crea una lista de los números que son coprimos con `n`.
+
+    :param n: Rango de los caracteres ASCII imprimibles.
+    :type n: int
+    :return: Lista de coprimos.
+    :rtype: npt.NDArray[np.int_]
+    """
     return np.array([i for i in range(1, n) if _gcd(i, n) == 1])
 
 
 def _is_valid_key(key: tuple[int, int]) -> bool:
+    """
+    Verifica que la llave cumpla con las condiciones para el Affin
+    Cipher.
+    """
     a, b = key
     a_condition = a in _coprime_numbers(_PRINTABLE_ASCII_LENGHT)
     b_condition = 0 <= b <= _PRINTABLE_ASCII_LENGHT - 1
@@ -89,6 +135,18 @@ def _is_valid_key(key: tuple[int, int]) -> bool:
 
 
 def validate_key(func: Callable[P, T]) -> Callable[P, T | None]:
+    """
+    Decorador que valida una llave para Affin Cipher.
+
+    Si la validación falla, se imprime un mensaje de error y la función
+    decorada no se ejecuta, retornando `None`.
+
+    :param func: Función a decorar.
+    :type func: Callable[[Callable[P, T]], Callable[P, T | None]]
+    :return: Función envuelta que retorna el resultado original o
+             `None` si la validación falla.
+    :rtype: Callable[[Callable[P, T]], Callable[P, T | None]]
+    """
     def _wrapper(*args, **kwargs) -> T | None:
         try:
             bound = inspect.signature(func).bind(*args, **kwargs)
@@ -107,6 +165,10 @@ def validate_key(func: Callable[P, T]) -> Callable[P, T | None]:
 
 
 def _get_multiplicative_inverse(n: int, a: int) -> int:
+    """
+    Devuelve el inverso multiplicativo `b` perteneciente al conjunto
+    de los coprimos con `n`, tal que `(a * b) % n = 1`.
+    """
     for coprime in _coprime_numbers(n):
         if (a * coprime) % n != 1:
             continue
@@ -117,6 +179,7 @@ def _get_multiplicative_inverse(n: int, a: int) -> int:
     
 
 def key_generator_affin() -> None:
+    """Genera una llave válida para el Affin Cipher."""
     rng = np.random.default_rng()
     a = rng.choice(_coprime_numbers(_PRINTABLE_ASCII_LENGHT))
     b = rng.integers(0, _PRINTABLE_ASCII_LENGHT)
@@ -132,6 +195,17 @@ def encrypt_affin(
         plaintext_file: str,
         ciphertext_file: str,
     ) -> None:
+    """
+    Cifra un texto usando Affin Cipher y lo guarda en un archivo de
+    texto.
+
+    :param key: Una llave válida.
+    :type key: tuple[int, int]
+    :param plaintext_file: Archivo con el texto a cifrar.
+    :type plaintext_file: str
+    :param ciphertext_file: Archivo con el texto descifrado.
+    :type ciphertext_file: str
+    """
     try:
         with open(_BASE_DIR / plaintext_file, "r", encoding="utf-8") as f:
             plaintext = f.read()
@@ -163,6 +237,14 @@ def decrypt_affin(
         key: tuple[int, int],
         ciphertext_file: str,
     ) -> None:
+    """
+    Descifra un texto usando Affin Cipher e imprime el resultado.
+
+    :param key: Una llave válida.
+    :type key: tuple[int, int]
+    :param ciphertext_file: Archivo con el texto descifrado.
+    :type ciphertext_file: str
+    """
     try:
         with open(_BASE_DIR / ciphertext_file, "r", encoding="utf-8") as f:
             ciphertext = f.read()

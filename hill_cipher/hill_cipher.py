@@ -1,7 +1,17 @@
+"""Cifrado usando Hill Cipher."""
+
 import numpy as np
-from pathlib import Path
+import numpy.typing as npt
 import msvcrt
 import os
+import inspect
+from pathlib import Path
+from functools import wraps
+from typing import (
+    Callable,
+    ParamSpec,
+    TypeVar,
+)
 
 __all__ = [
     "key_generator_hill",
@@ -9,8 +19,8 @@ __all__ = [
     "decrypt_hill"
 ]
 
-BASE_DIR = Path(__file__).parent
-PRINTABLE_ASCII_LENGHT = 95
+_BASE_DIR = Path(__file__).parent
+_PRINTABLE_ASCII_LENGHT = 95
 
 def _clean_console() -> None:
     os.system("cls" if os .name == "nt" else "clear")
@@ -25,46 +35,16 @@ def _file_exists(filename: str) -> bool:
     return Path(BASE_DIR / filename).exists()
 
 
-def _get_num(character: str) -> int:
-    """
-    Devuelve el código Unicode normalizado a 0 - 94. Solo se usa para
-    los caracteres imprimibles desde la 32 - 126.
-
-    :param character: Carácter imprimible.
-    :type character: str
-    :return: Código Unicode correspondiente a un carácter.
-    :rtype: int
-    """
-    unicode = ord(character) - 32
-    return unicode
+def _get_unicode(char: str) -> int:
+    return ord(char) - 32
 
 
 def _get_char(unicode: int) -> str:
-    """
-    Devuelve el cáracter que corresponde al código Unicode normalizado
-    a 0 - 94.
-
-    :param unicode: Unicode normalizado a 0 - 94.
-    :type unicode: int
-    :return: Cáracter correspondiente al código Unicode.
-    :rtype: str
-    """
-    char = chr(unicode + 32)
-    return char
+    return chr(unicode + 32)
 
 
 def _gcd(a: int, b: int) -> int:
-    """
-    Devuelve el máximo común divisor de dos divisores `a` y `b`, usando
-    el algoritmo extendido de Euclides.
-
-    :param a: Primer divisor.
-    :type a: int
-    :param b: Segundo divisor:
-    :type b: int
-    :return: Máximo común divisor. 
-    :rtype: int
-    """
+    """Máximo común divisor usando el algoritmo extendido de Euclides."""
     a, b = abs(a), abs(b)
     while b != 0:
         a, b = b, a % b
@@ -175,7 +155,7 @@ def encrypt_hill(
     i = 0
     while i < len(filtered_text):
         block = filtered_text[i:i+2]
-        vector = np.array([_get_num(block[0]), _get_num(block[1])])
+        vector = np.array([_get_unicode(block[0]), _get_unicode(block[1])])
         cipher = np.dot(key, vector) % PRINTABLE_ASCII_LENGHT
         encrypted_clean += _get_char(cipher[0]) + _get_char(cipher[1])
         i += 2
@@ -223,7 +203,7 @@ def decrypt_hill(
     i = 0
     while i < len(filtered_text):
         block = filtered_text[i:i+2]
-        vector = np.array([_get_num(block[0]), _get_num(block[1])])
+        vector = np.array([_get_unicode(block[0]), _get_unicode(block[1])])
         plain = np.dot(inverse_key, vector) % PRINTABLE_ASCII_LENGHT
         decrypted_clean += _get_char(plain[0]) + _get_char(plain[1])
         i += 2
