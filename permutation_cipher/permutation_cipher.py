@@ -9,6 +9,7 @@ from typing import (
     Callable,
     TypeVar,
     ParamSpec,
+    TypeAlias
 )
 from functools import wraps
 
@@ -21,6 +22,8 @@ __all__ = [
 
 P = ParamSpec("P")
 T = TypeVar("T")
+
+Permutation: TypeAlias = npt.NDArray[np.int_]
 
 _BASE_DIR = Path(__file__).parent
 
@@ -64,38 +67,38 @@ def validate_files(func: Callable[P, T]) -> Callable[P, T | None]:
     return _wrapper
 
 
-def _convert_permutation_to_string(permutation: npt.NDArray[np.int_]) -> str:
+def _convert_permutation_to_string(permutation: Permutation) -> str:
     """
     Convierte una permutación como array a un string.
 
     :param permutation: Permutación como array.
-    :type permutation: npt.NDArray[np.int_]
+    :type permutation: Permutation
     :return: Permutación como string.
     :rtype: str
     """
     return " ".join(map(str, permutation))
 
 
-def _convert_permutation_to_array(str_permutation: str) -> npt.NDArray[np.int_]:
+def _convert_permutation_to_array(str_permutation: str) -> Permutation:
     """
     Convierte una permutación como string a un array.
 
     :param str_permutation: Permutación como string.
     :type str_permutation: str
     :return: Permutación como array.
-    :rtype: npt.NDArray[np.int_]
+    :rtype: Permutation
     """
     return np.array([int(p) for p in str_permutation.split()], dtype=np.int_)
 
 
-def _recover_permutation_from_file(permutation_file: str) -> npt.NDArray[np.int_]:
+def _recover_permutation_from_file(permutation_file: str) -> Permutation:
     """
     Carga una permutación desde un archivo de texto.
 
     :param permutation_file: Archivo de texto con la permutación.
     :type permutation_file: str
     :return: Permutación como array.
-    :rtype: npt.NDArray[np.int_]
+    :rtype: Permutation
     """
     with open(_BASE_DIR / permutation_file, "r", encoding="utf-8") as f:
         permutation = f.read()
@@ -103,14 +106,14 @@ def _recover_permutation_from_file(permutation_file: str) -> npt.NDArray[np.int_
     return _convert_permutation_to_array(permutation)
 
 
-def _save_permutation_in_file(permutation: npt.NDArray[np.int_]) -> None:
+def _save_permutation_in_file(permutation: Permutation) -> None:
     """
     Guarda una permutación en un archivo de texto. En el nombre del
     archivo se indica el tamaño de la permutación como sigue
     'permutation_SIZE.txt'.
 
     :param permutation: Permutación como array.
-    :type permutation: npt.NDArray[np.int_]
+    :type permutation: Permutation
     """
     str_permutation = _convert_permutation_to_string(permutation)
 
@@ -118,28 +121,28 @@ def _save_permutation_in_file(permutation: npt.NDArray[np.int_]) -> None:
         f.write(str_permutation)
 
 
-def _permutation_generator(permutation_size: int) -> npt.NDArray[np.int_]:
+def _permutation_generator(permutation_size: int) -> Permutation:
     """
     Devuelve una permutación aleatoria de tamaño `permutation_size`.
 
     :param permutation_size: Tamaño de la permutación.
     :type permutation_size: int
     :return: Permutación como array.
-    :rtype: npt.NDArray[np.int_]
+    :rtype: Permutation
     """
     return np.random.permutation(np.arange(1, permutation_size + 1))
 
 
 def _inverse_permutation_generator(
-        random_permutation: npt.NDArray[np.int_]
-    ) -> npt.NDArray[np.int_]:
+        random_permutation: Permutation
+    ) -> Permutation:
     """
     Devuelve la permutación inversa.
 
     :param random_permutation: Permutación como array.
-    :type random_permutation: npt.NDArray[np.int_]
+    :type random_permutation: Permutation
     :return: Permutación inversa como array.
-    :rtype: npt.NDArray[np.int_]
+    :rtype: Permutation
     """
     inverse = np.empty_like(random_permutation)
 
@@ -151,14 +154,14 @@ def _inverse_permutation_generator(
 
 def permutation_random_generator(
         permutation_size: int
-    ) -> tuple[npt.NDArray[np.int_], npt.NDArray[np.int_]]:
+    ) -> tuple[Permutation, Permutation]:
     """
     Genera una permutación aleatoria y su inversa de tamaño `permutation_size`.
 
     :param permutation_size: Tamaño de la permutación.
     :type permutation_size: int
     :return: Permutación aleatoria y su inversa.
-    :rtype: tuple[npt.NDArray[np.int_], npt.NDArray[np.int_]
+    :rtype: tuple[Permutation, Permutation]
     """
     permutation = _permutation_generator(permutation_size)
     inverse_permutation = _inverse_permutation_generator(permutation)
