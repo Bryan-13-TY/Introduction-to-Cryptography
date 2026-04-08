@@ -168,9 +168,9 @@ def permutation_random_generator(
 @validate_files
 def encrypt_permutation(file_plaintext: str, permutation_file: str) -> None:
     """
-    Cifra un texto usando Permutation Cipher y lo guarda en un archivo
-    de texto. Toma el texto de un archivo de texto al igual que la
-    permutación a usar para el cifrado.
+    Cifra un texto usando Permutation Cipher y lo guarda en el archivo
+    de texto. El texto a cifrar y la permutación a usar se toman de un
+    archivo de texto.
 
     :param file_plaintext: Archivo con el texto a cifrar.
     :type file_plaintext: str
