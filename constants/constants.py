@@ -6,6 +6,7 @@ __all__ = [
     "GREEN",
     "YELLOW",
     "RESET",
+    "SPANISH_ALPHABET",
 ]
 
 # ==== Directorio base ====
@@ -16,3 +17,6 @@ RED = "\033[31m"
 GREEN = "\033[32m"
 YELLOW = "\033[33m"
 RESET = "\033[0m"
+
+# ==== Alfabeto ====
+SPANISH_ALPHABET = "ABCDEFGHIJKLMNÑOPQRSTUVWXY "

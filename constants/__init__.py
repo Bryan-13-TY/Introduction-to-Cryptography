@@ -4,6 +4,7 @@ from .constants import (
     GREEN,
     YELLOW,
     RESET,
+    SPANISH_ALPHABET,
 )
 
 _all__ = [
@@ -12,4 +13,5 @@ _all__ = [
     "GREEN",
     "YELLOW",
     "RESET",
+    "SPANISH_ALPHABET",
 ]
