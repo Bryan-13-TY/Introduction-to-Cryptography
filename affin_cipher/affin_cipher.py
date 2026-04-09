@@ -5,27 +5,15 @@ import numpy.typing as npt
 import os
 import msvcrt
 import ast
-import inspect
-from pathlib import Path
-from typing import (
-    Callable,
-    ParamSpec,
-    TypeVar,
+
+from constants import BASE_DIR_CRYPTO
+from decorators import (
+    validate_file,
+    validate_key,
 )
-from functools import wraps
 
-__all__ = [
-    "key_generator_affin",
-    "encrypt_affin",
-    "decrypt_affin",
-    "validate_file",
-    "validate_key",
-]
+__all__ = ["affin_cipher_menu"]
 
-P = ParamSpec("P")
-T = TypeVar("T")
-
-_BASE_DIR = Path(__file__).parent
 _PRINTABLE_ASCII_LENGHT = 95
 _VOCALES_ACENTUDADAS = "ÁÉÍÓÚáéíóú"
 
@@ -36,62 +24,6 @@ def _clean_console() -> None:
 def _wait_key() -> None:
     print("\nPresiona enter para continuar...")
     msvcrt.getch()
-
-
-def _file_exists(filename: str) -> bool:
-    return Path(_BASE_DIR / filename).exists()
-
-
-def validate_file(textfile_param_name: str) -> Callable[[Callable[P, T]], Callable[P, T | None]]:
-    """
-    Crea un decorador que valida un archivo recibido como argumento
-    en la función decorada.
-
-    El decorador verifica que el parámetro especificado:
-    - Existe dentro de los argumentos de la función.
-    - Sea de tipo `str`.
-    - Corresponda a un archivo existente.
-
-    Usa `inspect.signature().bind()` para mapear `*args` y `**kwargs`
-    a los nombres de parámetros de la función.
-
-    Si alguna validación falla, se imprime un mensaje de error y la
-    función decorada no se ejecuta, retornando `None`.
-
-    :param textfile_param_name: Nombre del parámetro en la función
-                                decorada que representa el archivo
-                                a validar.
-    :type textfile_param_name: str
-    :return: Un decorador que envuelve la función original agregando
-             validaciones sobre el archivo indicado.
-    :rtype: Callable[[Callable[P, T]], Callable[P, T | None]]
-    """
-    def _decorator(func: Callable[P, T]) -> Callable[P, T | None]:
-        @wraps(func)
-        def _wrapper(*args: P.args, **kwargs: P.kwargs) -> T | None:
-            try:
-                bound = inspect.signature(func).bind(*args, **kwargs)
-                bound.apply_defaults()
-            except TypeError as e:
-                print(f">> Error en argumentos: {e}")
-                return None
-            
-            filename = bound.arguments.get(textfile_param_name)
-            if filename is None:
-                print(f">> No se encontró el parámetro '{textfile_param_name}'")
-                return None
-            
-            if not isinstance(filename, str):
-                print(f">> El parámetro '{textfile_param_name}' debe ser un string")
-                return None
-            
-            if not _file_exists(filename):
-                print(f">> El archivo '{filename}' no existe")
-                return None
-            
-            return func(*args, **kwargs)
-        return _wrapper
-    return _decorator
 
 
 def _get_unicode(char: str) -> int:
@@ -134,36 +66,6 @@ def _is_valid_key(key: tuple[int, int]) -> bool:
     return a_condition and b_condition
 
 
-def validate_key(func: Callable[P, T]) -> Callable[P, T | None]:
-    """
-    Decorador que valida una llave para Affin Cipher.
-
-    Si la validación falla, se imprime un mensaje de error y la función
-    decorada no se ejecuta, retornando `None`.
-
-    :param func: Función a decorar.
-    :type func: Callable[[Callable[P, T]], Callable[P, T | None]]
-    :return: Función envuelta que retorna el resultado original o
-             `None` si la validación falla.
-    :rtype: Callable[[Callable[P, T]], Callable[P, T | None]]
-    """
-    def _wrapper(*args, **kwargs) -> T | None:
-        try:
-            bound = inspect.signature(func).bind(*args, **kwargs)
-            bound.apply_defaults()
-        except ValueError as e:
-            print(f">> Error en argumentos: {e}")
-            return None
-        
-        key = bound.arguments["key"]
-        if not _is_valid_key(key):
-            print(">> La llave no es válida")
-            return
-        
-        return func(*args, **kwargs)
-    return _wrapper
-
-
 def _get_multiplicative_inverse(n: int, a: int) -> int:
     """
     Devuelve el inverso multiplicativo `b` perteneciente al conjunto
@@ -178,7 +80,7 @@ def _get_multiplicative_inverse(n: int, a: int) -> int:
     raise RuntimeError(">> No se encontro inverso, pero debía existir")
     
 
-def key_generator_affin() -> None:
+def _key_generator_affin() -> None:
     """Genera una llave válida para el Affin Cipher."""
     rng = np.random.default_rng()
     a = rng.choice(_coprime_numbers(_PRINTABLE_ASCII_LENGHT))
@@ -188,9 +90,9 @@ def key_generator_affin() -> None:
     print(f"\nTu llave es K = {key}")
 
 
-@validate_key
+@validate_key(_is_valid_key)
 @validate_file("plaintext_file")
-def encrypt_affin(
+def _encrypt_affin(
         key: tuple[int, int],
         plaintext_file: str,
         ciphertext_file: str,
@@ -207,7 +109,7 @@ def encrypt_affin(
     :type ciphertext_file: str
     """
     try:
-        with open(_BASE_DIR / plaintext_file, "r", encoding="utf-8") as f:
+        with open(BASE_DIR_CRYPTO / plaintext_file, "r", encoding="utf-8") as f:
             plaintext = f.read()
     except FileNotFoundError:
         print(">> El archivo con el 'plaintext' no existe")
@@ -224,16 +126,16 @@ def encrypt_affin(
             ciphertext += _get_char(c)
 
     try:
-        with open(_BASE_DIR / ciphertext_file, "w", encoding="utf-8") as f:
+        with open(BASE_DIR_CRYPTO / ciphertext_file, "w", encoding="utf-8") as f:
             f.write(ciphertext)
     except FileNotFoundError:
         print(">> El archivo con el 'ciphertext' no existe")
         return
     
 
-@validate_key
+@validate_key(_is_valid_key)
 @validate_file("ciphertext_file")
-def decrypt_affin(
+def _decrypt_affin(
         key: tuple[int, int],
         ciphertext_file: str,
     ) -> None:
@@ -246,7 +148,7 @@ def decrypt_affin(
     :type ciphertext_file: str
     """
     try:
-        with open(_BASE_DIR / ciphertext_file, "r", encoding="utf-8") as f:
+        with open(BASE_DIR_CRYPTO / ciphertext_file, "r", encoding="utf-8") as f:
             ciphertext = f.read()
     except FileNotFoundError:
         print(">> El archivo con el 'ciphertext' no existe")
@@ -267,7 +169,7 @@ def decrypt_affin(
     print(f">> Texto original recuperado:\n\n{plaintext}")
 
 
-def main() -> None:
+def affin_cipher_menu() -> None:
     while True:
         _clean_console()
         print("""
@@ -285,7 +187,7 @@ def main() -> None:
         option = input("Opción: ")
         match option:
             case "1":
-                key_generator_affin()
+                _key_generator_affin()
                 _wait_key()
             case "2":
                 key = input("\nIngresa una llave válida (ej: (49, 82)): ").strip()
@@ -295,21 +197,24 @@ def main() -> None:
                 ciphertext_filename = input(
                     "Escribe el nombre del archivo donde quieres guardar el ciphertext: "
                 )
-                encrypt_affin(key_tuple, plaintext_filename, ciphertext_filename)
+                _encrypt_affin(key_tuple, plaintext_filename, ciphertext_filename)
                 _wait_key()
             case "3":
                 key = input("\nIngresa una llave válida (ej: (49, 82)): ").strip()
                 key_tuple = ast.literal_eval(key)
 
                 ciphertext_filename = input("Escribe el nombre del archivo con el 'ciphertext': ")
-                
-                decrypt_affin(key_tuple, ciphertext_filename)
+                _decrypt_affin(key_tuple, ciphertext_filename)
                 _wait_key()
             case "4":
                 break
             case _:
                 print(">> Opción no válida")
                 _wait_key()
+
+
+def main() -> None:
+    affin_cipher_menu()
 
 if __name__ == "__main__":
     main()

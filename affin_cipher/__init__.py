@@ -1,11 +1,3 @@
-from .affin_cipher import (
-    key_generator_affin,
-    encrypt_affin,
-    decrypt_affin
-)
+from .affin_cipher import affin_cipher_menu
 
-__all__ = [
-    "key_generator_affin",
-    "encrypt_affin",
-    "decrypt_affin"
-]
+__all__ = ["affin_cipher_menu"]
