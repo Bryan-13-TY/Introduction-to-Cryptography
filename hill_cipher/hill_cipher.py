@@ -4,22 +4,18 @@ import numpy as np
 import numpy.typing as npt
 import msvcrt
 import os
-import inspect
-from pathlib import Path
-from functools import wraps
-from typing import (
-    Callable,
-    ParamSpec,
-    TypeVar,
+from typing import TypeAlias
+
+from constants import BASE_DIR_CRYPTO
+from decorators import (
+    validate_file,
+    validate_key,
 )
 
-__all__ = [
-    "key_generator_hill",
-    "encrypt_hill",
-    "decrypt_hill"
-]
+__all__ = ["hill_cipher_menu"]
 
-_BASE_DIR = Path(__file__).parent
+Matrix2x2: TypeAlias = npt.NDArray[np.int_]
+
 _PRINTABLE_ASCII_LENGHT = 95
 
 def _clean_console() -> None:
@@ -29,10 +25,6 @@ def _clean_console() -> None:
 def _wait_key() -> None:
     print("\nPresiona enter para continuar...")
     msvcrt.getch()
-
-
-def _file_exists(filename: str) -> bool:
-    return Path(BASE_DIR / filename).exists()
 
 
 def _get_unicode(char: str) -> int:
@@ -49,11 +41,6 @@ def _gcd(a: int, b: int) -> int:
     while b != 0:
         a, b = b, a % b
     return a
-
-
-def key_is_valid(key: np.ndarray) -> bool:
-    determinant = _calculate_determinant(key)
-    return _gcd(determinant, PRINTABLE_ASCII_LENGHT) == 1
 
 
 def _multiplicative_inverse(n: int, a: int) -> int | None:
@@ -80,64 +67,83 @@ def _multiplicative_inverse(n: int, a: int) -> int | None:
     return t % n
 
 
-def _generate_random_matrix() -> np.ndarray:
-    matrix = np.random.randint(low=0, high=PRINTABLE_ASCII_LENGHT, size=(2,2))
-    return matrix
+def _generate_random_matrix() -> Matrix2x2:
+    return np.random.randint(low=0, high=_PRINTABLE_ASCII_LENGHT, size=(2,2), dtype=np.int_)
 
 
-def _calculate_determinant(matrix: np.ndarray) -> int:
-    a, b = matrix[0, 0], matrix[0, 1]
-    c, d = matrix[1, 0], matrix[1, 1]
-    determinant = int(a * d - b * c)
-    return determinant
-
-
-def _calculate_adjuntate_matrix(matrix: np.ndarray) -> np.ndarray:
+def _calculate_determinant(matrix: Matrix2x2) -> int:
     a, b = matrix[0, 0], matrix[0, 1]
     c, d = matrix[1, 0], matrix[1, 1]
     
-    adjuntate_matrix = np.array([[d, -b], [-c, a]])
-    return adjuntate_matrix 
+    return int(a * d - b * c)
 
 
-def key_generator_hill() -> np.ndarray:
+def _is_valid_key(key: Matrix2x2) -> bool:
+    """
+    Determina si una llave para Hill Cipher es valida cumpliendo con
+    gcd(key, n) = 1.
+    """
+    return _gcd(
+        _calculate_determinant(key),
+        _PRINTABLE_ASCII_LENGHT,
+    ) == 1
+
+
+def _calculate_adjuntate_matrix(matrix: Matrix2x2) -> Matrix2x2:
+    a, b = matrix[0, 0], matrix[0, 1]
+    c, d = matrix[1, 0], matrix[1, 1]
+
+    return np.array([[d, -b], [-c, a]], dtype=np.int_)
+
+
+def _key_generator_hill() -> Matrix2x2:
     while True:
         key = _generate_random_matrix()
         determinant = _calculate_determinant(key)
-        if _gcd(determinant, PRINTABLE_ASCII_LENGHT) == 1:
+        if _gcd(determinant, _PRINTABLE_ASCII_LENGHT) == 1:
             print(f"\nTu llave es K =\n{key}")
             return key
 
 
-def _calculate_inverse_key(key: np.ndarray) -> np.ndarray | None:
-    key_determinant = _calculate_determinant(key) % PRINTABLE_ASCII_LENGHT
-    inverse_key_determinant = _multiplicative_inverse(PRINTABLE_ASCII_LENGHT, key_determinant) 
+def _calculate_inverse_key(key: Matrix2x2) -> Matrix2x2 | None:
+    key_determinant = _calculate_determinant(key) % _PRINTABLE_ASCII_LENGHT
+    
+    inverse_key_determinant = _multiplicative_inverse(
+        _PRINTABLE_ASCII_LENGHT,
+        key_determinant
+    ) 
 
     if inverse_key_determinant is None:
         return None
     
     adjuntate_key = _calculate_adjuntate_matrix(key)
-    inverse_key = (inverse_key_determinant * adjuntate_key) % PRINTABLE_ASCII_LENGHT
-    return inverse_key
+    inverse_key = (
+        inverse_key_determinant * adjuntate_key
+    ) % _PRINTABLE_ASCII_LENGHT
+    
+    return inverse_key.astype(np.int_)
 
 
-def convert_key_format(key: str) -> np.ndarray:
+def _convert_key_format(key: str) -> Matrix2x2:
     key_list = key.split(", ")
+    
     key_matrix = [
         [int(key_list[0]), int(key_list[1])],
         [int(key_list[2]), int(key_list[3])]
     ]
-    valid_format_key = np.array(key_matrix)
-    return valid_format_key
+
+    return np.array(key_matrix, dtype=np.int_)
 
 
-def encrypt_hill(
-        key: np.ndarray,
-        plaintext_filename: str,
-        ciphertext_filename: str
+@validate_key(_is_valid_key)
+@validate_file("plaintext_file")
+def _encrypt_hill(
+        key: Matrix2x2,
+        plaintext_file: str,
+        ciphertext_file: str,
     ) -> None:
     try:
-        with open(BASE_DIR / plaintext_filename, "r", encoding="utf-8") as f:
+        with open(BASE_DIR_CRYPTO / plaintext_file, "r", encoding="utf-8") as f:
             plaintext = f.read()
     except FileNotFoundError:
         print(">> El archivo con el 'plaintext' no existe")
@@ -145,18 +151,18 @@ def encrypt_hill(
     
     # Filtrar caracteres que sí se cifran
     filtered_text = [c for c in plaintext if 32 <= ord(c) <= 126]
-    
+
     # Padding con X, para asegurar la división en bloques de 2
     if len(filtered_text) % 2 != 0:
         filtered_text.append("X")
-    
+
     # === CIFRADO EN BLOQUES ===
     encrypted_clean = ""
     i = 0
     while i < len(filtered_text):
         block = filtered_text[i:i+2]
-        vector = np.array([_get_unicode(block[0]), _get_unicode(block[1])])
-        cipher = np.dot(key, vector) % PRINTABLE_ASCII_LENGHT
+        vector = np.array([_get_unicode(block[0]), _get_unicode(block[1])], dtype=(np.int_))
+        cipher = np.dot(key, vector) % _PRINTABLE_ASCII_LENGHT
         encrypted_clean += _get_char(cipher[0]) + _get_char(cipher[1])
         i += 2
 
@@ -175,19 +181,21 @@ def encrypt_hill(
         final_ciphertext += encrypted_clean[k:]
 
     try:
-        with open(BASE_DIR / ciphertext_filename, "w", encoding="utf-8") as f:
+        with open(BASE_DIR_CRYPTO / ciphertext_file, "w", encoding="utf-8") as f:
             f.write(final_ciphertext)
     except FileNotFoundError:
         print(">> El archivo con el 'ciphertext' no existe")
         return
     
 
-def decrypt_hill(
-        key: np.ndarray,
-        ciphertext_filename: str
+@validate_key(_is_valid_key)
+@validate_file("ciphertext_file")
+def _decrypt_hill(
+        key: Matrix2x2,
+        ciphertext_file: str,
     ) -> None:
     try:
-        with open(BASE_DIR / ciphertext_filename, "r", encoding="utf-8") as f:
+        with open(BASE_DIR_CRYPTO / ciphertext_file, "r", encoding="utf-8") as f:
             ciphertext = f.read()
     except FileNotFoundError:
         print(">> El archivo con el 'ciphertext' no existe")
@@ -204,7 +212,7 @@ def decrypt_hill(
     while i < len(filtered_text):
         block = filtered_text[i:i+2]
         vector = np.array([_get_unicode(block[0]), _get_unicode(block[1])])
-        plain = np.dot(inverse_key, vector) % PRINTABLE_ASCII_LENGHT
+        plain = np.dot(inverse_key, vector) % _PRINTABLE_ASCII_LENGHT
         decrypted_clean += _get_char(plain[0]) + _get_char(plain[1])
         i += 2
 
@@ -227,7 +235,7 @@ def decrypt_hill(
     print(f">> Texto original recuperado:\n\n{final_plaintext}")
 
 
-def main() -> None:
+def hill_cipher_menu() -> None:
     while True:
         _clean_console()
         print("""
@@ -245,46 +253,35 @@ def main() -> None:
         option = input("Opción: ")
         match option:
             case "1":
-                key = key_generator_hill()
+                key = _key_generator_hill()
                 print(f"\nY su inversa K^-1 =\n{_calculate_inverse_key(key)}")
                 _wait_key()
             case "2":
                 key = input("\nIngresa una llave válida (ej: [81, 63, 66, 85]): ").strip()
-                key_valid_format = convert_key_format(key)
-                if not key_is_valid(key_valid_format):
-                    print(">> La llave no es válida")
-                    return
+                key_valid_format = _convert_key_format(key)
                 
-                plaintext_filename = input("Escribe el nombre del archivo con el 'plaintext': ")
-                if not _file_exists(plaintext_filename):
-                    print(">> El archivo con el 'plaintext' no existe")
-                    return
-                
+                plaintext_filename = input("Escribe el nombre del archivo con el 'plaintext': ")        
                 ciphertext_filename = input(
                     "Escribe el nombre del archivo donde quieres guardar el ciphertext: "
                 )
-                encrypt_hill(key_valid_format, plaintext_filename, ciphertext_filename)
+                _encrypt_hill(key_valid_format, plaintext_filename, ciphertext_filename)
                 _wait_key()
-                pass
             case "3":
                 key = input("\nIngresa una llave válida (ej: [81, 63, 66, 85]): ").strip()
-                key_valid_format = convert_key_format(key)
-                if not key_is_valid(key_valid_format):
-                    print(">> La llave no es válida")
-                    return
+                key_valid_format = _convert_key_format(key)
 
                 ciphertext_filename = input("Escribe el nombre del archivo con el 'ciphertext': ")
-                if not _file_exists(ciphertext_filename):
-                    print(">> El archivo con el 'ciphertext' no existe")
-                    return
-                
-                decrypt_hill(key_valid_format, ciphertext_filename)
+                _decrypt_hill(key_valid_format, ciphertext_filename)
                 _wait_key()
             case "4":
                 break
             case _:
                 print(">> Opción no válida")
-                _wait_key()
+                _wait_key()    
+
+
+def main() -> None:
+    hill_cipher_menu()
 
 if __name__ == "__main__":
     main()
