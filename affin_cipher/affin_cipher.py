@@ -4,7 +4,13 @@ import numpy as np
 import numpy.typing as npt
 import ast
 
-from constants import BASE_DIR_CRYPTO
+from constants import (
+    BASE_DIR_CRYPTO,
+    RED,
+    GREEN,
+    YELLOW,
+    RESET,
+)
 from decorators import (
     validate_file,
     validate_key,
@@ -70,7 +76,10 @@ def _get_multiplicative_inverse(n: int, a: int) -> int:
         
         return coprime
     
-    raise RuntimeError(">> No se encontro inverso, pero debía existir")
+    raise RuntimeError(
+        f"\n{YELLOW}>>{RESET}{RED} ERROR{RESET}"
+        ": No se encontro inverso, pero debía existir"
+    )
     
 
 def _key_generator_affin() -> None:
@@ -80,7 +89,7 @@ def _key_generator_affin() -> None:
     b = rng.integers(0, _PRINTABLE_ASCII_LENGHT)
 
     key = np.array([a, b])
-    print(f"\nTu llave es K = {key}")
+    print(f"\n{YELLOW}>>{RESET} Tu llave es K = {key}")
 
 
 @validate_key(_is_valid_key)
@@ -101,12 +110,8 @@ def _encrypt_affin(
     :param ciphertext_file: Archivo con el texto descifrado.
     :type ciphertext_file: str
     """
-    try:
-        with open(BASE_DIR_CRYPTO / plaintext_file, "r", encoding="utf-8") as f:
-            plaintext = f.read()
-    except FileNotFoundError:
-        print(">> El archivo con el 'plaintext' no existe")
-        return
+    with open(BASE_DIR_CRYPTO / plaintext_file, "r", encoding="utf-8") as f:
+        plaintext = f.read()
     
     ciphertext = ""
     a, b = key
@@ -118,12 +123,13 @@ def _encrypt_affin(
             c = (a * _get_unicode(m) + b) % _PRINTABLE_ASCII_LENGHT
             ciphertext += _get_char(c)
 
-    try:
-        with open(BASE_DIR_CRYPTO / ciphertext_file, "w", encoding="utf-8") as f:
-            f.write(ciphertext)
-    except FileNotFoundError:
-        print(">> El archivo con el 'ciphertext' no existe")
-        return
+    with open(BASE_DIR_CRYPTO / ciphertext_file, "w", encoding="utf-8") as f:
+        f.write(ciphertext)
+
+    print(
+        f"\n{YELLOW}>>{RESET} {GREEN}"
+        f"Texto cifrado correctamente y guardado en '{ciphertext_file}'{RESET}"
+    )
     
 
 @validate_key(_is_valid_key)
@@ -140,12 +146,8 @@ def _decrypt_affin(
     :param ciphertext_file: Archivo con el texto descifrado.
     :type ciphertext_file: str
     """
-    try:
-        with open(BASE_DIR_CRYPTO / ciphertext_file, "r", encoding="utf-8") as f:
-            ciphertext = f.read()
-    except FileNotFoundError:
-        print(">> El archivo con el 'ciphertext' no existe")
-        return
+    with open(BASE_DIR_CRYPTO / ciphertext_file, "r", encoding="utf-8") as f:
+        ciphertext = f.read()
     
     plaintext = ""
     a, b = key
@@ -158,8 +160,8 @@ def _decrypt_affin(
             m = ((_get_unicode(c) - b) * a_inverse) % _PRINTABLE_ASCII_LENGHT
             plaintext += _get_char(m)
 
-    print(f"\n>> El inverso multiplicativo usando fue: {a_inverse}")
-    print(f">> Texto original recuperado:\n\n{plaintext}")
+    print(f"\n{YELLOW}>>{RESET} El inverso multiplicativo usado fue: {a_inverse}")
+    print(f"{YELLOW}>>{RESET} Texto original recuperado:\n\n{plaintext}")
 
 
 def affin_cipher_menu() -> None:
@@ -188,7 +190,7 @@ def affin_cipher_menu() -> None:
                 
                 plaintext_filename = input("Escribe el nombre del archivo con el 'plaintext': ")
                 ciphertext_filename = input(
-                    "Escribe el nombre del archivo donde quieres guardar el ciphertext: "
+                    "Escribe el nombre del archivo donde se almacenará el ciphertext: "
                 )
                 _encrypt_affin(key_tuple, plaintext_filename, ciphertext_filename)
                 wait_key()
@@ -202,7 +204,7 @@ def affin_cipher_menu() -> None:
             case "4":
                 break
             case _:
-                print(">> Opción no válida")
+                print(f"\n{YELLOW}>>{RESET}{RED} ERROR{RESET}: Opción no válida")
                 wait_key()
 
 

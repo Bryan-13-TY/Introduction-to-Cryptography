@@ -2,6 +2,7 @@ from constants import (
     BASE_DIR_CRYPTO,
     RED,
     GREEN,
+    YELLOW,
     RESET,
     SPANISH_ALPHABET,
 )
@@ -19,13 +20,8 @@ def _encrypt_shift(
         plaintext_file: str,
         ciphertext_file: str,
     ) -> None:
-    try:
-        with open(BASE_DIR_CRYPTO / plaintext_file, "r", encoding="utf-8") as f:
-            plaintext = f.read()
-    except FileNotFoundError:
-        print(">> El archivo con el 'plaintext' no existe")
-        return
-
+    with open(BASE_DIR_CRYPTO / plaintext_file, "r", encoding="utf-8") as f:
+        plaintext = f.read()
 
     alphabet_lenght = len(SPANISH_ALPHABET)
     ciphertext = ""
@@ -39,6 +35,11 @@ def _encrypt_shift(
     
     with open(BASE_DIR_CRYPTO / ciphertext_file, "w", encoding="utf-8") as f:
         f.write(ciphertext)
+
+    print(
+        f"\n{YELLOW}>>{RESET} {GREEN}"
+        f"Texto cifrado correctamente y guardado en '{ciphertext_file}'{RESET}"
+    )
 
 
 @validate_file("ciphertext_file")
@@ -63,18 +64,18 @@ def _decrypt_shift(
         else:
             plaintext += c
     
-    print(f"\n>> Texto original recuperado:\n\n{plaintext}")
+    print(f"\n{YELLOW}>>{RESET} Texto original recuperado:\n\n{plaintext}")
 
 
 def shift_cipher_menu() -> None:
     while True:
         clean_console()
-        print("""
+        print(f"""
 /*-------------.
 | SHIFT CIPHER |
 `-------------*/
               
->> Elija una de las opciones
+{YELLOW}>>{RESET} Elija una de las opciones
               
 1.- Cifrar el texto plano
 2.- Descifrar el texto cifrado
@@ -86,19 +87,19 @@ def shift_cipher_menu() -> None:
                 try:
                     key = int(input("\nIngresa una llave: "))
                 except ValueError:
-                    print(f">>{RED} ERROR{RESET} Debe ser un número")
+                    print(f"\n{YELLOW}>>{RESET}{RED} ERROR{RESET}: Debe ser un número")
                     wait_key()
                     continue
 
                 plaintext_filename = input("Escribe el nombre del archivo con el 'plaintext': ")
-                ciphertext_filename = input("Escribe el nombre del archivo donde quieres guardar el 'ciphertext': ")
+                ciphertext_filename = input("Escribe el nombre del archivo donde se almacenará el 'ciphertext': ")
                 _encrypt_shift(key, plaintext_filename, ciphertext_filename)
                 wait_key()
             case "2":
                 try:
                     key = int(input("\nIngresa una llave: "))
                 except ValueError:
-                    print(f">>{RED} ERROR{RESET} Debe ser un número")
+                    print(f"\n{YELLOW}>>{RESET}{RED} ERROR{RESET} Debe ser un número")
                     wait_key()
                     continue
 
@@ -108,7 +109,7 @@ def shift_cipher_menu() -> None:
             case "3":
                 break
             case _:
-                print(">> Opción no válida")
+                print(f"\n{YELLOW}>>{RESET}{RED} ERROR{RESET}: Opción no válida")
                 wait_key()
 
 

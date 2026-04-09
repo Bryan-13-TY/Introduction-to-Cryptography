@@ -4,7 +4,13 @@ import numpy as np
 import numpy.typing as npt
 from typing import TypeAlias
 
-from constants import BASE_DIR_CRYPTO
+from constants import (
+    BASE_DIR_CRYPTO,
+    RED,
+    GREEN,
+    YELLOW,
+    RESET,
+)
 from decorators import (
     validate_file,
     validate_key,
@@ -94,7 +100,7 @@ def _key_generator_hill() -> Matrix2x2:
         key = _generate_random_matrix()
         determinant = _calculate_determinant(key)
         if _gcd(determinant, _PRINTABLE_ASCII_LENGHT) == 1:
-            print(f"\nTu llave es K =\n{key}")
+            print(f"\n{YELLOW}>>{RESET} Tu llave es K =\n\n{key}")
             return key
 
 
@@ -135,12 +141,8 @@ def _encrypt_hill(
         plaintext_file: str,
         ciphertext_file: str,
     ) -> None:
-    try:
-        with open(BASE_DIR_CRYPTO / plaintext_file, "r", encoding="utf-8") as f:
-            plaintext = f.read()
-    except FileNotFoundError:
-        print(">> El archivo con el 'plaintext' no existe")
-        return
+    with open(BASE_DIR_CRYPTO / plaintext_file, "r", encoding="utf-8") as f:
+        plaintext = f.read()
     
     # Filtrar caracteres que sí se cifran
     filtered_text = [c for c in plaintext if 32 <= ord(c) <= 126]
@@ -175,6 +177,11 @@ def _encrypt_hill(
 
     with open(BASE_DIR_CRYPTO / ciphertext_file, "w", encoding="utf-8") as f:
         f.write(final_ciphertext)
+
+    print(
+        f"\n{YELLOW}>>{RESET} {GREEN}"
+        f"Texto cifrado correctamente y guardado en '{ciphertext_file}'{RESET}"
+    )
     
 
 @validate_key(_is_valid_key)
@@ -220,19 +227,19 @@ def _decrypt_hill(
     if final_plaintext.endswith("X"):
         final_plaintext = final_plaintext[:-1]
 
-    print(f"\n>> El K^-1 mod n usado fue: \n{_calculate_inverse_key(key)}")
-    print(f">> Texto original recuperado:\n\n{final_plaintext}")
+    print(f"\n{YELLOW}>>{RESET} El K^-1 mod n usado fue: \n\n{_calculate_inverse_key(key)}")
+    print(f"\n{YELLOW}>>{RESET} Texto original recuperado:\n\n{final_plaintext}")
 
 
 def hill_cipher_menu() -> None:
     while True:
         clean_console()
-        print("""
+        print(f"""
 /*------------.
 | HILL CIPHER |
 `------------*/
               
->> Elija una de las opciones
+{YELLOW}>>{RESET} Elija una de las opciones
               
 1.- Crear una llave eleatoria válida
 2.- Cifrar el texto plano
@@ -243,7 +250,7 @@ def hill_cipher_menu() -> None:
         match option:
             case "1":
                 key = _key_generator_hill()
-                print(f"\nY su inversa K^-1 =\n{_calculate_inverse_key(key)}")
+                print(f"\n{YELLOW}>>{RESET} Y su inversa K^-1 =\n\n{_calculate_inverse_key(key)}")
                 wait_key()
             case "2":
                 key = input("\nIngresa una llave válida (ej: [81, 63, 66, 85]): ").strip()
@@ -251,7 +258,7 @@ def hill_cipher_menu() -> None:
                 
                 plaintext_filename = input("Escribe el nombre del archivo con el 'plaintext': ")        
                 ciphertext_filename = input(
-                    "Escribe el nombre del archivo donde quieres guardar el ciphertext: "
+                    "Escribe el nombre del archivo donde se almacenará el 'ciphertext': "
                 )
                 _encrypt_hill(key_valid_format, plaintext_filename, ciphertext_filename)
                 wait_key()
@@ -265,7 +272,7 @@ def hill_cipher_menu() -> None:
             case "4":
                 break
             case _:
-                print(">> Opción no válida")
+                print(f"\n{YELLOW}>>{RESET}{RED} ERROR{RESET}: Opción no válida")
                 wait_key()    
 
 

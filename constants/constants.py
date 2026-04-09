@@ -13,9 +13,9 @@ __all__ = [
 BASE_DIR_CRYPTO = Path(__file__).resolve().parent.parent
 
 # ==== Códigos ANSI ====
-RED = "\033[31m"
-GREEN = "\033[32m"
-YELLOW = "\033[33m"
+RED = "\033[91m"
+GREEN = "\033[92m"
+YELLOW = "\033[93m"
 RESET = "\033[0m"
 
 # ==== Alfabeto ====

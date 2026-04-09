@@ -9,7 +9,13 @@ from Crypto.Util.Padding import (
     unpad,
 )
 
-from constants import BASE_DIR_CRYPTO
+from constants import (
+    BASE_DIR_CRYPTO,
+    RED,
+    GREEN,
+    YELLOW,
+    RESET,
+)
 from decorators import (
     validate_key,
     validate_file_DES,
@@ -54,7 +60,7 @@ def _random_key_generator() -> bytes:
     """
     key = get_random_bytes(8)
     key_base64 = base64.b64encode(key).decode()
-    print(f"\nLlave DES (Base64): {key_base64}")
+    print(f"\n{YELLOW}>>{RESET} Tu llave DES (Base64): {key_base64}")
     return key
 
 
@@ -86,7 +92,10 @@ def _encrypt_file(key: bytes, plaintext_file: str, ciphertext_file: str) -> None
     with open(BASE_DIR_CRYPTO / ciphertext_file, "wb") as f:
         f.write(base64.b64encode(iv + ciphertext))
 
-    print("Archivo encriptado")
+    print(
+        f"\n{YELLOW}>>{RESET} {GREEN}"
+        f"Archivo cifrado correctamente y guardado como '{ciphertext_file}'{RESET}"
+    )
 
 
 @validate_key(_is_valid_key)
@@ -119,18 +128,21 @@ def _decrypt_file(key: bytes, ciphertext_file: str, output_file: str) -> None:
     with open(BASE_DIR_CRYPTO / output_file, "wb") as f:
         f.write(plaintext)
         
-    print("Archivo desencriptado")
+    print(
+        f"\n{YELLOW}>>{RESET} {GREEN}"
+        f"Archivo descifrado correctamente y guardado como '{output_file}'{RESET}"
+    )
 
 
 def block_cipher_menu() -> None:
     while True:
         clean_console()
-        print("""
+        print(f"""
 /*-------------.
 | BLOCK CIPHER |
 `-------------*/
               
->> Elija una de las opciones
+{YELLOW}>>{RESET} Elija una de las opciones
               
 1.- Crear una llave para DES 
 2.- Cifrar el texto plano
@@ -147,7 +159,10 @@ def block_cipher_menu() -> None:
                 try:
                     key = base64.b64decode(key_base64)
                 except Exception:
-                    print(">> La llave en base64 no es válida")
+                    print(
+                        f"\n{YELLOW}>>{RESET}{RED} ERROR{RESET}"
+                        ": La llave en base64 no es válida"
+                    )
                     wait_key()
                     continue
 
@@ -162,7 +177,10 @@ def block_cipher_menu() -> None:
                 try:
                     key = base64.b64decode(key_base64)
                 except Exception:
-                    print(">> La llave en base64 no es válida")
+                    print(
+                        f"\n{YELLOW}>>{RESET}{RED} ERROR{RESET}"
+                        ": La llave en base64 no es válida"
+                    )
                     wait_key()
                     continue
 
@@ -175,7 +193,7 @@ def block_cipher_menu() -> None:
             case "4":
                 break
             case _:
-                print(">> Opción no válida")
+                print(f"\n{YELLOW}>>{RESET}{RED} ERROR{RESET}: Opción no válida")
                 wait_key()
 
 

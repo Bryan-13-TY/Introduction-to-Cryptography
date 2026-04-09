@@ -11,6 +11,7 @@ from typing import (
 from constants import (
     BASE_DIR_CRYPTO,
     RED,
+    YELLOW,
     RESET,
 )
 
@@ -49,7 +50,7 @@ def validate_files(func: Callable[P, T]) -> Callable[P, T | None]:
     def _wrapper(*args: P.args, **kwargs: P.kwargs) -> T | None:
         for arg in args:
             if isinstance(arg, str) and not _file_exists(arg):
-                print(f">>{RED} ERROR{RESET} El archivo '{arg}' no existe")
+                print(f"\n{YELLOW}>>{RESET}{RED} ERROR{RESET}: El archivo '{arg}' no existe")
                 return None
         
         return func(*args, **kwargs)
@@ -104,24 +105,33 @@ def validate_file_DES(
                 bound = inspect.signature(func).bind(*args, **kwargs)
                 bound.apply_defaults()
             except TypeError as e:
-                print(f">>{RED} ERROR{RESET} en argumentos: {e}")
+                print(f"\n{YELLOW}>>{RESET}{RED} ERROR{RESET} en argumentos: {e}")
                 return None
             
             filename = bound.arguments.get(textfile_param_name)
             if filename is None:
-                print(f">>{RED} ERROR{RESET} No se encontró el parámetro '{textfile_param_name}'")
+                print(
+                    f"\n{YELLOW}>>{RESET}{RED} ERROR{RESET}"
+                    f": No se encontró el parámetro '{textfile_param_name}'"
+                )
                 return None
             
             if not isinstance(filename, str):
-                print(f">>{RED} ERROR{RESET} El parámetro '{textfile_param_name}' debe ser un string")
+                print(
+                    f"\n{YELLOW}>>{RESET}{RED} ERROR{RESET}"
+                    f": El parámetro '{textfile_param_name}' debe ser un string"
+                )
                 return None
             
             if not _file_exists(filename):
-                print(f">>{RED} ERROR{RESET} El archivo '{filename}' no existe")
+                print(f"\n{YELLOW}>>{RESET}{RED} ERROR{RESET}: El archivo '{filename}' no existe")
                 return None
             
             if not _is_valid_file_size_DES(filename):
-                print(f">>{RED} ERROR{RESET} El archivo debe ser mayor a 100 KB")
+                print(
+                    f"\n{YELLOW}>>{RESET}{RED} ERROR{RESET}"
+                    f": El archivo '{filename}' debe pesar más de 100 KB"
+                )
                 return None
             
             return func(*args, **kwargs)
@@ -160,20 +170,26 @@ def validate_file(textfile_param_name: str) -> Callable[[Callable[P, T]], Callab
                 bound = inspect.signature(func).bind(*args, **kwargs)
                 bound.apply_defaults()
             except TypeError as e:
-                print(f">>{RED} ERROR{RESET} en argumentos: {e}")
+                print(f"\n{YELLOW}>>{RESET}{RED} ERROR{RESET} en argumentos: {e}")
                 return None
             
             filename = bound.arguments.get(textfile_param_name)
             if filename is None:
-                print(f">>{RED} ERROR{RESET} No se encontró el parámetro '{textfile_param_name}'")
+                print(
+                    f"\n{YELLOW}>>{RESET}{RED} ERROR{RESET}"
+                    f": No se encontró el parámetro '{textfile_param_name}'"
+                )
                 return None
             
             if not isinstance(filename, str):
-                print(f">>{RED} ERROR{RESET} El parámetro '{textfile_param_name}' debe ser un string")
+                print(
+                    f"\n{YELLOW}>>{RESET}{RED} ERROR{RESET}"
+                    f": El parámetro '{textfile_param_name}' debe ser un string"
+                )
                 return None
             
             if not _file_exists(filename):
-                print(f">>{RED} ERROR{RESET} El archivo '{filename}' no existe")
+                print(f"\n{YELLOW}>>{RESET}{RED} ERROR{RESET}: El archivo '{filename}' no existe")
                 return None
             
             return func(*args, **kwargs)
@@ -192,16 +208,19 @@ def validate_key(
                 bound = inspect.signature(func).bind(*args, **kwargs)
                 bound.apply_defaults()
             except TypeError as e:
-                print(f">>{RED} ERROR{RESET} en argumentos: {e}")
+                print(f"\n{YELLOW}>>{RESET}{RED} ERROR{RESET} en argumentos: {e}")
                 return None
             
             key = bound.arguments.get(param_name)
             if key is None:
-                print(f">>{RED} ERROR{RESET} No se encontró el parámetro '{param_name}'")
+                print(
+                    f"\n{YELLOW}>>{RESET}{RED} ERROR{RESET}"
+                    f": No se encontró el parámetro '{param_name}'"
+                )
                 return None
 
             if not condition_func(key):
-                print(f">>{RED} ERROR{RESET} La llave no es valida")
+                print(f"\n{YELLOW}>>{RESET}{RED} ERROR{RESET}: La llave no es valida")
                 return
             
             return func(*args, **kwargs)
