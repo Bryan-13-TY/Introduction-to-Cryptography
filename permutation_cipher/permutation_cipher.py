@@ -2,25 +2,18 @@
 
 import numpy as np
 import numpy.typing as npt
-import msvcrt
-import os
 from typing import TypeAlias
 
 from constants import BASE_DIR_CRYPTO
 from decorators import validate_files
+from utils import (
+    clean_console,
+    wait_key,
+)
 
 __all__ = ["permutation_cipher_menu"]
 
 Permutation: TypeAlias = npt.NDArray[np.int_]
-
-def _clean_console() -> None:
-    os.system("cls" if os .name == "nt" else "clear")
-
-
-def _wait_key() -> None:
-    print("\nPresiona enter para continuar...")
-    msvcrt.getch()
-
 
 def _convert_permutation_to_string(permutation: Permutation) -> str:
     """
@@ -226,7 +219,7 @@ def _decrypt_permutation(file_ciphertext: str, permutation_file: str) -> None:
 
 def permutation_cipher_menu() -> None:
     while True:
-        _clean_console()
+        clean_console()
         print("""
 /*-------------------.
 | PERMUTATION CIPHER |
@@ -245,11 +238,11 @@ def permutation_cipher_menu() -> None:
                 permutation_size = input("\nIngresa el tamaño que tendrá la permutación: ")
                 if not permutation_size.isdigit():
                     print(">> Debe ser un número")
-                    _wait_key()
+                    wait_key()
                     continue
                 if not int(permutation_size) >= 3:
                     print(">> Deber ser mayor o igual a 3")
-                    _wait_key()
+                    wait_key()
                     continue
                 
                 (
@@ -259,26 +252,26 @@ def permutation_cipher_menu() -> None:
 
                 print(f"\nLa permutación generada es π(x):\n\n", permutation)
                 print(f"\nY su inversa π^-1(x):\n\n", inverse_permutation)               
-                _wait_key()
+                wait_key()
             case "2":
                 file_plaintext = input("\nIngresa el nombre del archivo con el 'plaintext' M: ")
                 file_permutation = input(
                     "Escribe el nombre del archivo con la permutación a usar: "
                 )
                 _encrypt_permutation(file_plaintext, file_permutation)
-                _wait_key()
+                wait_key()
             case "3":
                 file_ciphertext = input("\nIngresa el nombre del archivo con el 'ciphertext' C: ")
                 file_permutation = input(
                     "Escribe el nombre del archivo con la permutación a usar: "
                 )
                 _decrypt_permutation(file_ciphertext, file_permutation)
-                _wait_key()
+                wait_key()
             case "4":
                 break
             case _:
                 print(">> Opción no válida")
-                _wait_key()
+                wait_key()
 
 
 def main() -> None:

@@ -1,8 +1,6 @@
 """Cifrado usando DES."""
 
 import base64
-import msvcrt
-import os
 
 from Crypto.Random import get_random_bytes
 from Crypto.Cipher import DES
@@ -16,17 +14,12 @@ from decorators import (
     validate_key,
     validate_file_DES,
 )
+from utils import (
+    clean_console,
+    wait_key,
+)
 
 __all__ = ["block_cipher_menu"]
-
-def _clean_console() -> None:
-    os.system("cls" if os.name == "nt" else "clear")
-
-
-def _wait_key() -> None:
-    print("\nPresiona enter para continuar...")
-    msvcrt.getch()
-
 
 def _is_valid_key(key: bytes) -> bool:
     """
@@ -131,7 +124,7 @@ def _decrypt_file(key: bytes, ciphertext_file: str, output_file: str) -> None:
 
 def block_cipher_menu() -> None:
     while True:
-        _clean_console()
+        clean_console()
         print("""
 /*-------------.
 | BLOCK CIPHER |
@@ -148,14 +141,14 @@ def block_cipher_menu() -> None:
         match option:
             case "1":
                 _random_key_generator()
-                _wait_key()
+                wait_key()
             case "2":
                 key_base64 = input("\nEscribe la llave en base 64: ")
                 try:
                     key = base64.b64decode(key_base64)
                 except Exception:
                     print(">> La llave en base64 no es válida")
-                    _wait_key()
+                    wait_key()
                     continue
 
                 infile = input("Escribe el nombre del archivo con el 'plaintext': ")
@@ -163,14 +156,14 @@ def block_cipher_menu() -> None:
                     "Escribe el nombre del archivo donde se almacenará el 'ciphertext': "
                 )
                 _encrypt_file(key, infile, outfile)
-                _wait_key()
+                wait_key()
             case "3":
                 key_base64 = input("\nEscribe la llave en base 64: ")
                 try:
                     key = base64.b64decode(key_base64)
                 except Exception:
                     print(">> La llave en base64 no es válida")
-                    _wait_key()
+                    wait_key()
                     continue
 
                 infile = input("Escribe el nombre del archivo con el 'ciphertext': ")                
@@ -178,12 +171,12 @@ def block_cipher_menu() -> None:
                     "Escribe el nombre del archivo donde se almacenará el 'plaintext': "
                 )
                 _decrypt_file(key, infile, outfile)
-                _wait_key()
+                wait_key()
             case "4":
                 break
             case _:
                 print(">> Opción no válida")
-                _wait_key()
+                wait_key()
 
 
 def main() -> None:

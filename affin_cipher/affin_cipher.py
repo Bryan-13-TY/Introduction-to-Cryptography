@@ -2,8 +2,6 @@
 
 import numpy as np
 import numpy.typing as npt
-import os
-import msvcrt
 import ast
 
 from constants import BASE_DIR_CRYPTO
@@ -11,20 +9,15 @@ from decorators import (
     validate_file,
     validate_key,
 )
+from utils import (
+    clean_console,
+    wait_key,
+)
 
 __all__ = ["affin_cipher_menu"]
 
 _PRINTABLE_ASCII_LENGHT = 95
 _VOCALES_ACENTUDADAS = "ÁÉÍÓÚáéíóú"
-
-def _clean_console() -> None:
-    os.system("cls" if os .name == "nt" else "clear")
-
-
-def _wait_key() -> None:
-    print("\nPresiona enter para continuar...")
-    msvcrt.getch()
-
 
 def _get_unicode(char: str) -> int:
     return ord(char) - 32
@@ -171,7 +164,7 @@ def _decrypt_affin(
 
 def affin_cipher_menu() -> None:
     while True:
-        _clean_console()
+        clean_console()
         print("""
 /*-------------.
 | AFFIN CIPHER |              
@@ -188,7 +181,7 @@ def affin_cipher_menu() -> None:
         match option:
             case "1":
                 _key_generator_affin()
-                _wait_key()
+                wait_key()
             case "2":
                 key = input("\nIngresa una llave válida (ej: (49, 82)): ").strip()
                 key_tuple = ast.literal_eval(key)
@@ -198,19 +191,19 @@ def affin_cipher_menu() -> None:
                     "Escribe el nombre del archivo donde quieres guardar el ciphertext: "
                 )
                 _encrypt_affin(key_tuple, plaintext_filename, ciphertext_filename)
-                _wait_key()
+                wait_key()
             case "3":
                 key = input("\nIngresa una llave válida (ej: (49, 82)): ").strip()
                 key_tuple = ast.literal_eval(key)
 
                 ciphertext_filename = input("Escribe el nombre del archivo con el 'ciphertext': ")
                 _decrypt_affin(key_tuple, ciphertext_filename)
-                _wait_key()
+                wait_key()
             case "4":
                 break
             case _:
                 print(">> Opción no válida")
-                _wait_key()
+                wait_key()
 
 
 def main() -> None:

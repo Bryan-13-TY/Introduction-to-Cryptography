@@ -2,8 +2,6 @@
 
 import numpy as np
 import numpy.typing as npt
-import msvcrt
-import os
 from typing import TypeAlias
 
 from constants import BASE_DIR_CRYPTO
@@ -11,21 +9,16 @@ from decorators import (
     validate_file,
     validate_key,
 )
+from utils import (
+    clean_console,
+    wait_key,
+)
 
 __all__ = ["hill_cipher_menu"]
 
 Matrix2x2: TypeAlias = npt.NDArray[np.int_]
 
 _PRINTABLE_ASCII_LENGHT = 95
-
-def _clean_console() -> None:
-    os.system("cls" if os .name == "nt" else "clear")
-
-
-def _wait_key() -> None:
-    print("\nPresiona enter para continuar...")
-    msvcrt.getch()
-
 
 def _get_unicode(char: str) -> int:
     return ord(char) - 32
@@ -180,12 +173,8 @@ def _encrypt_hill(
     if k < len(encrypted_clean):
         final_ciphertext += encrypted_clean[k:]
 
-    try:
-        with open(BASE_DIR_CRYPTO / ciphertext_file, "w", encoding="utf-8") as f:
-            f.write(final_ciphertext)
-    except FileNotFoundError:
-        print(">> El archivo con el 'ciphertext' no existe")
-        return
+    with open(BASE_DIR_CRYPTO / ciphertext_file, "w", encoding="utf-8") as f:
+        f.write(final_ciphertext)
     
 
 @validate_key(_is_valid_key)
@@ -237,7 +226,7 @@ def _decrypt_hill(
 
 def hill_cipher_menu() -> None:
     while True:
-        _clean_console()
+        clean_console()
         print("""
 /*------------.
 | HILL CIPHER |
@@ -255,7 +244,7 @@ def hill_cipher_menu() -> None:
             case "1":
                 key = _key_generator_hill()
                 print(f"\nY su inversa K^-1 =\n{_calculate_inverse_key(key)}")
-                _wait_key()
+                wait_key()
             case "2":
                 key = input("\nIngresa una llave válida (ej: [81, 63, 66, 85]): ").strip()
                 key_valid_format = _convert_key_format(key)
@@ -265,19 +254,19 @@ def hill_cipher_menu() -> None:
                     "Escribe el nombre del archivo donde quieres guardar el ciphertext: "
                 )
                 _encrypt_hill(key_valid_format, plaintext_filename, ciphertext_filename)
-                _wait_key()
+                wait_key()
             case "3":
                 key = input("\nIngresa una llave válida (ej: [81, 63, 66, 85]): ").strip()
                 key_valid_format = _convert_key_format(key)
 
                 ciphertext_filename = input("Escribe el nombre del archivo con el 'ciphertext': ")
                 _decrypt_hill(key_valid_format, ciphertext_filename)
-                _wait_key()
+                wait_key()
             case "4":
                 break
             case _:
                 print(">> Opción no válida")
-                _wait_key()    
+                wait_key()    
 
 
 def main() -> None:
