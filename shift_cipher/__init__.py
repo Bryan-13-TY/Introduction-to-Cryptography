@@ -1,9 +1,3 @@
-from .shift_cipher import (
-    encrypt_shift,
-    decrypt_shift,
-)
+from .shift_cipher import shift_cipher_menu
 
-__all__ = [
-    "encrypt_shift",
-    "decrypt_shift",
-]
+__all__ = ["shift_cipher_menu"]
