@@ -1,14 +1,13 @@
-from pathlib import Path
-from tqdm import tqdm
+from constants import BASE_DIR_CRYPTO
 
-BASE_DIR = Path(__file__).parent
+__all__ = ["file_generator_DES"]
 
-def files_generator() -> None:
-    with open(BASE_DIR / "test_prueba.txt", "w") as f:
+def file_generator_DES() -> None:
+    with open(BASE_DIR_CRYPTO / "test_prueba_DES.txt", "w") as f:
         f.write("Rodrigo" * 10)  # 1000000
 
 def main() -> None:
-    files_generator()
+    file_generator_DES()
 
 if __name__ == "__main__":
     main()
