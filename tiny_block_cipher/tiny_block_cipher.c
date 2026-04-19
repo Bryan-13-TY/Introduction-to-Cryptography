@@ -187,7 +187,7 @@ static BlockCStatus store_permutation(int size, unsigned char array[size], char 
  * - BLOCKC_SBOX_MEMORY_ERROR si hubo un error al reservar memoria para la S-Box.
  */
 BlockCStatus sbox_generator() {
-    int l = 1 << 2;
+    int l = 1 << 3;
     int size_permutation = 1 << l;
 
     unsigned char *array = malloc(size_permutation * sizeof(*array));
