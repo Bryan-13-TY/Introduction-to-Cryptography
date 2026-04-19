@@ -83,8 +83,8 @@ int main(int argc, char const *argv[]) {
                 read_string(sizeof(block), block);
                 if (strlen(block) == 2) {
                     blockc_status = encrypt(sbox_filename, key_filename, block, sub_keys);
-                    if (BLOCKC_SBOX_OPEN_FILE_ERROR == blockc_status) printf("\n>>> Hubo un error al cargar la S-Box");
                     if (BLOCKC_KEY_OPEN_FILE_ERROR == blockc_status) printf("\n>>> Hubo un error al cargar la llave");
+                    if (BLOCKC_SBOX_OPEN_FILE_ERROR == blockc_status) printf("\n>>> Hubo un error al cargar la S-Box");
                     if (BLOCKC_KEY_READ_ERROR == blockc_status) printf("\n>>> Hubo un erro al leer la llave");
                 } else {
                     printf("\n>> El tamano del bloque no es correcto");
@@ -421,11 +421,11 @@ BlockCStatus encrypt(char sbox_filename[], char key_filename[], char block[], un
     unsigned short C;
     BlockCStatus blockc_status;
 
-    // Cargar S-Box y la llave
-    blockc_status = load_sbox(sbox_filename, sbox);
+    // Cargar la llave y la S-Box
+    blockc_status = load_key(key_filename, &K);
     if (BLOCKC_OK != blockc_status) return blockc_status;
 
-    blockc_status = load_key(key_filename, &K);
+    blockc_status = load_sbox(sbox_filename, sbox);
     if (BLOCKC_OK != blockc_status) return blockc_status;
 
     // Expandir la llave
