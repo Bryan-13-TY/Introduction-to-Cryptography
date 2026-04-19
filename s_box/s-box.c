@@ -18,16 +18,16 @@ typedef enum {
 
 static void wait_key();
 static void clean_buffer();
-static void fill_array(int size, int array[size]);
-static void shuffle_array(int size, int array[size]);
+static void fill_array(int size, unsigned char array[size]);
+static void shuffle_array(int size, unsigned char array[size]);
 static void generate_textfile_name(char name[], int max_size, int num_bits);
-static SBoxStatus store_permutation(int size, int array[size], char textfile_name[]);
+static SBoxStatus store_permutation(int size, unsigned char array[size], char textfile_name[]);
 SBoxStatus sbox_generator(int n);
 static void read_string(int size, char string[size]);
 static unsigned char get_4MSB(unsigned char c);
 static unsigned char get_4LSB(unsigned char c);
 static unsigned char shuffle_nibbles(unsigned char high_nibble, unsigned char low_nibble);
-static SBoxStatus load_sbox(char textfile_name[], int sbox[], int bits);
+static SBoxStatus load_sbox(char textfile_name[], unsigned char sbox[], int sbox_size);
 static int hex_to_int(char c);
 SBoxStatus sbox_4bits(char M[]);
 SBoxStatus sbox_8bits(char M[]);
@@ -85,11 +85,13 @@ int main(int argc, char const *argv[]) {
                 switch (option_bit) {
                     case 1:
                         sbox_status = sbox_4bits(M);
-                        if (SBOX_OK != sbox_status) printf("\n>>> Hubo un error al cargar la S-Box de 4 bits");
+                        if (SBOX_OPEN_FILE_ERROR == sbox_status) printf("\n>>> Hubo un error al cargar la S-Box de 4 bits");
+                        if (SBOX_OUT_OF_RANGE == sbox_status) printf("\n>>> El tamano de la S-Box no es soportado");
                         break;
                     case 2:
                         sbox_status = sbox_8bits(M);
-                        if (SBOX_OK != sbox_status) printf("\n>>> Hubo un error al cargar la S-Box de 8 bits");
+                        if (SBOX_OPEN_FILE_ERROR == sbox_status) printf("\n>>> Hubo un error al cargar la S-Box de 8 bits");
+                        if (SBOX_OUT_OF_RANGE == sbox_status) printf("\n>>> El tamano de la S-Box no es soportado");
                         break;
                     default:
                         printf("\n>> Opcion no valida");
@@ -108,7 +110,8 @@ int main(int argc, char const *argv[]) {
                 } else {
                     K = (unsigned short)temp;
                     sbox_status = sbox_16bits(K);
-                    if (SBOX_OK != sbox_status) printf("\n>>> Hubo un error al cargar alguna S-Box de 8 bits");
+                    if (SBOX_OPEN_FILE_ERROR == sbox_status) printf("\n>>> Hubo un error al cargar alguna S-Box de 8 bits");
+                    if (SBOX_OUT_OF_RANGE == sbox_status) printf("\n>>> El tamano de la S-Box no es soportado");
                 } 
 
                 wait_key();
@@ -123,7 +126,8 @@ int main(int argc, char const *argv[]) {
                 } else {
                     K = (unsigned short)temp;
                     sbox_status = sbox_4bits_k(K);
-                    if (SBOX_OK != sbox_status) printf("\n>>> Hubo un error al cargar la S-Box de 4 bits");
+                    if (SBOX_OPEN_FILE_ERROR == sbox_status) printf("\n>>> Hubo un error al cargar la S-Box de 4 bits");
+                    if (SBOX_OUT_OF_RANGE == sbox_status) printf("\n>>> El tamano de la S-Box no es soportado");
                 }
 
                 wait_key();
@@ -159,7 +163,7 @@ static void clean_buffer() {
  * @param size Número de entradas de la S-Box.
  * @param array Arreglo para la S-Box.
  */
-static void fill_array(int size, int array[size]) {
+static void fill_array(int size, unsigned char array[size]) {
     for (int i = 0; i < size; i++) {
         array[i] = i;
     }
@@ -171,11 +175,11 @@ static void fill_array(int size, int array[size]) {
  * @param size Número de entradas de la S-Box.
  * @param array Arreglo para la S-Box.
  */
-static void shuffle_array(int size, int array[size]) {
+static void shuffle_array(int size, unsigned char array[size]) {
     for (int i = size - 1; i > 0; i--) {
         int j = rand() % (i + 1);
         
-        int temp = array[i];
+        unsigned char temp = array[i];
         array[i] = array[j];
         array[j] = temp;
     } 
@@ -186,10 +190,10 @@ static void shuffle_array(int size, int array[size]) {
  * 
  * @param name Arreglo para el nombre del archivo.
  * @param max_size Tamaño del areglo `name`.
- * @param num_bits Número de bits a sustituir.
+ * @param sbox_size Número de bits a sustituir.
  */
-static void generate_textfile_name(char name[], int max_size, int num_bits) {
-    snprintf(name, max_size, "sbox_%dbits.txt", num_bits);
+static void generate_textfile_name(char name[], int max_size, int sbox_size) {
+    snprintf(name, max_size, "sbox_%dbits.txt", sbox_size);
 }
 
 /**
@@ -203,12 +207,12 @@ static void generate_textfile_name(char name[], int max_size, int num_bits) {
  * - SBOX_OK si se guardo correctamente.
  * - SBOX_OPEN_FILE_ERROR si hubo un error al abrir el archivo.
  */
-static SBoxStatus store_permutation(int size, int array[size], char textfile_name[]) {
+static SBoxStatus store_permutation(int size, unsigned char array[size], char textfile_name[]) {
     FILE *fp = fopen(textfile_name, "w");
     if (!fp) return SBOX_OPEN_FILE_ERROR;
 
     for (int i = 0; i < size; i++) {
-        fprintf(fp, "%X -> %X\n", i, array[i]);
+        fprintf(fp, "%02X -> %92X\n", i, array[i]);
     }
 
     fclose(fp);
@@ -224,14 +228,15 @@ static SBoxStatus store_permutation(int size, int array[size], char textfile_nam
  * - SBOX_OK se la S-Box se genero correctamente.
  * - SBOX_OPEN_FILE_ERROR si hubo un error al guardar la S-Box.
  * - SBOX_MEMORY_ERROR si hubo un error al reservar memoria para la S-Box.
+ * - SBOX_OUT_OF_RANGE si el tamaño de la S-Box no es soportado.
  */
 SBoxStatus sbox_generator(int n) {
-    if (!(n == 2 || n == 3)) return SBOX_OUT_OF_RANGE;
+    if (n < 2 || n > 3) return SBOX_OUT_OF_RANGE;
 
     int l = 1 << n;
     int size_permutation = 1 << l;
 
-    int *array = malloc(size_permutation * sizeof(int));
+    unsigned char *array = malloc(size_permutation * sizeof(*array));
     if (!array) return SBOX_MEMORY_ERROR;
 
     char textfile_name[50];
@@ -263,23 +268,23 @@ static void read_string(int size, char string[size]) {
 /**
  * @brief Obtiene el nibble alto (4 bits más significativos) de un byte.
  * 
- * @param c Un byte.
+ * @param byte Un byte.
  * 
  * @return Nibble alto del byte.
  */
-static unsigned char get_4MSB(unsigned char c) {
-    return (c >> 4) & 0x0F;
+static unsigned char get_4MSB(unsigned char byte) {
+    return (byte >> 4) & 0x0F;
 }
 
 /**
  * @brief Obtiene el nibble bajo (4 bits menos significativos) de un byte.
  * 
- * @param c Un byte.
+ * @param byte Un byte.
  * 
  * @return Nibble bajo del byte.
  */
-static unsigned char get_4LSB(unsigned char c) {
-    return c & 0x0F;
+static unsigned char get_4LSB(unsigned char byte) {
+    return byte & 0x0F;
 }
 
 /**
@@ -295,14 +300,15 @@ static unsigned char shuffle_nibbles(unsigned char high_nibble, unsigned char lo
 }
 
 static int hex_to_int(char c) {
-    int n;
     if (c >= '0' && c <= '9') {
-        n = c - '0';
+        return c - '0';
+    } else if (c >= 'A' && c <= 'F') {
+        return c - 'A' + 10;
+    } else if (c >= 'a' && c <= 'f') {
+        return c - 'a' + 10;
     } else {
-        n = c - 'A' + 10;
+        return -1;
     }
-
-    return n;
 } 
 
 /**
@@ -315,26 +321,44 @@ static int hex_to_int(char c) {
  * @return
  * - SBOX_OK si se cargo correctamente.
  * - SBOX_OPEN_FILE_ERROR si hubo un error al abrir el archivo.
+ * - SBOX_OUT_OF_RANGE si el tamaño de la S-Box no es soportado.
  */
-static SBoxStatus load_sbox(char textfile_name[], int sbox[], int bits) {
+static SBoxStatus load_sbox(char textfile_name[], unsigned char sbox[], int sbox_size) {
     FILE *fp = fopen(textfile_name, "r");
     if (!fp) return SBOX_OPEN_FILE_ERROR;
 
     int input, output;
 
-    if (bits == 4) {    
+    // Inicializar la S-Box
+    int size = 1 << sbox_size;
+    for (int i = 0; i < size; i++) {
+        sbox[i] = 0;
+    }
+
+    if (sbox_size == 4) {    
         char in, out;
 
         while (fscanf(fp, " %c -> %c", &in, &out) == 2) {
             input = hex_to_int(in);
             output = hex_to_int(out);
-            sbox[input] = output;
+
+            // Evitar escribir fuera del rango del arreglo
+            if (input != -1 && output != -1) {
+                if (input >= 0 && input < 16 && output >= 0 && output < 16) {
+                    sbox[input] = (unsigned char)output;
+                }
+            }
         }
-    }
-    else if (bits == 8) {
+    } else if (sbox_size == 8) {
         while (fscanf(fp, " %X -> %X", &input, &output) == 2) {
-            sbox[input] = output;
+            // Evitamos escribir fuera del rango del arreglo
+            if (input >= 0 && input < 256 && output >= 0 && output < 256) {
+                sbox[input] = (unsigned char)output;
+            }
         }
+    } else {
+        fclose(fp);
+        return SBOX_OUT_OF_RANGE;
     }
 
     fclose(fp);
@@ -349,10 +373,11 @@ static SBoxStatus load_sbox(char textfile_name[], int sbox[], int bits) {
  * @return
  * - SBOX_OK si la sustitución fue correcta.
  * - SBOX_OPEN_FILE_ERROR si hubo un error al cargar la S-Box.
+ * - SBOX_OUT_OF_RANGE si el tamaño de la S-Box no es soportado.
  */
 SBoxStatus sbox_4bits(char M[]) {
     unsigned char high_nibble, low_nibble, temp, new_high_nibble, new_low_nibble;
-    int sbox_4[16];
+    unsigned char sbox_4[16];
     size_t size_m = strlen(M);
     unsigned char MS[size_m];
 
@@ -392,9 +417,10 @@ SBoxStatus sbox_4bits(char M[]) {
  * @return
  * - SBOX_OK si la sustitución fue correcta.
  * - SBOX_OPEN_FILE_ERROR si hubo un error al cargar la S-Box.
+ * - SBOX_OUT_OF_RANGE si el tamaño de la S-Box no es soportado.
  */
 SBoxStatus sbox_8bits(char M[]) {
-    int sbox_8[256];
+    unsigned char sbox_8[256];
     size_t size_m = strlen(M);
     unsigned char MS[size_m], new_byte;
 
@@ -461,10 +487,11 @@ static unsigned short shuffle_bytes(unsigned char high_byte, unsigned char low_b
  * @return
  * - SBOX_OK si la sustitución fue correcta.
  * - SBOX_OPEN_FILE_ERROR si hubo un error al cargar alguna de las S-Box.
+ * - SBOX_OUT_OF_RANGE si el tamaño de la S-Box no es soportado.
  */
 SBoxStatus sbox_16bits(unsigned short K) {
     unsigned char high_byte, low_byte, new_high_byte, new_low_byte;
-    int sbox_8[256], sbox_8_1[256];
+    unsigned char sbox_8[256], sbox_8_1[256];
     unsigned short KS;
 
     SBoxStatus sbox_status = load_sbox("sbox_8bits.txt", sbox_8, 8);
@@ -495,11 +522,12 @@ SBoxStatus sbox_16bits(unsigned short K) {
  * 
  * - SBOX_OK si la sustitución fue correcta.
  * - SBOX_OPEN_FILE_ERROR si hubo un error al cargar la S-Box.
+ * - SBOX_OUT_OF_RANGE si el tamaño de la S-Box no es soportado.
  */
 SBoxStatus sbox_4bits_k(unsigned short K) {
     unsigned char high_byte, low_byte, new_high_byte, new_low_byte;
     unsigned char high_nibble, low_nibble, new_high_nibble, new_low_nibble;
-    int sbox_4[16];
+    unsigned char sbox_4[16];
     unsigned short KS;
 
     SBoxStatus sbox_status = load_sbox("sbox_4bits.txt", sbox_4, 4);
