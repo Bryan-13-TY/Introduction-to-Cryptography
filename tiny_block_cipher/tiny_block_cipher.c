@@ -37,6 +37,9 @@ static unsigned char get_4LSB(unsigned char c);
 static unsigned char swap_nibbles(unsigned char byte);
 static void key_expansion(unsigned short K, unsigned char sbox[], unsigned short sub_keys[]);
 BlockCStatus encrypt(char sbox_filename[], char key_filename[], char block[], unsigned short sub_keys[]);
+static BlockCStatus load_inverse_sbox(char sbox_filename[], unsigned char inverse_sbox[]);
+static void unformat_block(unsigned short value, char block[]);
+BlockCStatus decrypt(char sbox_filename[], char key_filename[], char block[], unsigned short sub_keys[]);
 
 int main(int argc, char const *argv[]) {
     int option = 0;
@@ -55,7 +58,8 @@ int main(int argc, char const *argv[]) {
         printf("1.- Generar una S-Box de 8 bits\n");
         printf("2.- Generar una clave secreta\n");
         printf("3.- Cifrar un plaintext\n");
-        printf("4.- Salir del programa\n\n");
+        printf("4.- Descifrar un ciphertext\n");
+        printf("5.- Salir del programa\n\n");
         printf("Opcion: ");
         scanf("%d", &option);
         clean_buffer();
@@ -92,6 +96,23 @@ int main(int argc, char const *argv[]) {
                 wait_key();
                 break;
             case 4:
+                printf("\n>> Escribe el nombre del archivo con la llave: ");
+                read_string(sizeof(key_filename), key_filename);
+                printf(">> Escribe el nombre del archivo con la S-Box: ");
+                read_string(sizeof(sbox_filename), sbox_filename);
+                printf(">> Escribe el bloque a descifrar (2 caracteres): ");
+                read_string(sizeof(block), block);
+                if (strlen(block) == 2) {
+                    blockc_status = decrypt(sbox_filename, key_filename, block, sub_keys);
+                    if (BLOCKC_KEY_OPEN_FILE_ERROR == blockc_status) printf("\n>>> Hubo un error al cargar la llave");
+                    if (BLOCKC_SBOX_OPEN_FILE_ERROR == blockc_status) printf("\n>>> Hubo un error al cargar la S-Box o la S-Box inversa");
+                    if (BLOCKC_KEY_READ_ERROR == blockc_status) printf("\n>>> Hubo un erro al leer la llave");
+                } else {
+                    printf("\n>> El tamano del bloque no es correcto");
+                }
+                wait_key();
+                break;
+            case 5:
                 printf("\n>> Gracias por probar el programa");
                 break;
             default:
@@ -99,7 +120,7 @@ int main(int argc, char const *argv[]) {
                 wait_key();
                 break;
         }
-    } while(option != 4);
+    } while(option != 5);
     return 0;
 }
 
@@ -241,7 +262,7 @@ static void read_string(int size, char string[size]) {
  * @brief Carga la S-Box desde un archivo de texto.
  * 
  * @param sbox_filename Nombre del archivo.
- * @param sbox Arreglo en donde se carga la S-Box.
+ * @param sbox Arreglo en donde se guarda la S-Box.
  * 
  * @return
  * - BLOCKC_OK si se cargo correctamente.
@@ -251,7 +272,7 @@ static BlockCStatus load_sbox(char sbox_filename[], unsigned char sbox[]) {
     FILE *fp = fopen(sbox_filename, "r");
     if (!fp) return BLOCKC_SBOX_OPEN_FILE_ERROR;
 
-    // Inicializae la S-Box
+    // Inicializa la S-Box
     int size = 1 << 8;
     for (int i = 0; i < size; i++) {
         sbox[i] = 0;
@@ -394,14 +415,14 @@ static void key_expansion(unsigned short K, unsigned char sbox[], unsigned short
     printf("w4: %02X\n", w4);
     printf("w5: %02X\n", w5);
 
-    // Guardamos la sub-llaves
+    // Guardamos las sub-llaves
     sub_keys[0] = shuffle_bytes(w0, w1);
     sub_keys[1] = shuffle_bytes(w2, w3);
     sub_keys[2] = shuffle_bytes(w4, w5);
 }
 
 /**
- * @brief Descibra un bloque de 2 bytes.
+ * @brief Cifra un bloque de 2 bytes.
  * 
  * @param sbox_filename Archivo con la S-Box.
  * @param key_filename Archivo con la llave secreta.
@@ -418,7 +439,7 @@ BlockCStatus encrypt(char sbox_filename[], char key_filename[], char block[], un
     unsigned short K;
     unsigned char sbox[256], L, R;
     unsigned short M = format_block(block);
-    unsigned short C;
+    char string[3];
     BlockCStatus blockc_status;
 
     // Cargar la llave y la S-Box
@@ -446,7 +467,108 @@ BlockCStatus encrypt(char sbox_filename[], char key_filename[], char block[], un
         printf(": %04X\n", M);
     }
 
-    printf("\n>> El bloque cifrado es: %04X", M);
+    unformat_block(M, string);
+
+    printf("\n>> El bloque cifrado es: %04X -> %s", M, string);
+
+    return BLOCKC_OK;
+}
+
+/**
+ * @brief Carga la S-Box inversa desde un archivo de texto.
+ * 
+ * @param sbox_filename Nombre del archivo.
+ * @param inverse_sbox Arreglo en donde se guarga la S-Box inversa.
+ * 
+ * @return
+ * - BLOCKC_OK si se cargo correctamente.
+ * - BLOCKC_SBOX_OPEN_FILE_ERROR si hubo un error al abrir el archivo.
+ */
+static BlockCStatus load_inverse_sbox(char sbox_filename[], unsigned char inverse_sbox[]) {
+    FILE *fp = fopen(sbox_filename, "r");
+    if (!fp) return BLOCKC_SBOX_OPEN_FILE_ERROR;
+
+    // Inicializa ls S-Box inversa
+    int size = 1 << 8;
+    for (int i = 0; i <size; i++) {
+        inverse_sbox[i] = 0;
+    }
+
+    int input, output;
+    while (fscanf(fp, " %X -> %X", &input, &output) == 2) {
+        if (input >= 0 && input < 256 && output >= 0 && output < 256) {
+            inverse_sbox[output] = (unsigned char)input;
+        }
+    }
+
+    fclose(fp);
+    return BLOCKC_OK;
+}
+
+/**
+ * @brief Convierte un bloque de 2 bytes a una cadena de 2 caracteres.
+ * 
+ * @param value Bloque de dos 2 bytes.
+ * @param block Arreglo donde se guardan los 2 caracteres.
+ */
+static void unformat_block(unsigned short value, char block[]) {
+    block[0] = (value >> 8) & 0xFF;
+    block[1] = value & 0xFF;
+    block[2] = '\0';
+}
+
+/**
+ * @brief Descifra un bloque de 2 bytes.
+ * 
+ * @param sbox_filename Archivo con la S-Box.
+ * @param key_filename Archivo con la llave secreta.
+ * @param block Bloque a descifrar.
+ * @param sub_keys Arreglo con las sub-llaves.
+ * 
+ * @return
+ * - BLOCKC_OK si el cifrado se hizo correctamente.
+ * - BLOCKC_SBOX_OPEN_FILE_ERROR si hubo un error al cargar la S-Box o la S-Box inversa.
+ * - BLOCKC_KEY_OPEN_FILE_ERROR si hubo un error al cargar la llave.
+ * - BLOCKC_KEY_READ_ERROR si hubo un error al leer la llave.
+ */
+BlockCStatus decrypt(char sbox_filename[], char key_filename[], char block[], unsigned short sub_keys[]) {
+    unsigned short K;
+    unsigned char sbox[256], inverse_sbox[256], L, R;
+    unsigned short C = format_block(block);
+    char string[3];
+    BlockCStatus blockc_status;
+
+    // Cargar la llave y la S-Box inversa
+    blockc_status = load_key(key_filename, &K);
+    if (BLOCKC_OK != blockc_status) return blockc_status;
+
+    blockc_status = load_sbox(sbox_filename, sbox);
+    if (BLOCKC_OK != blockc_status) return blockc_status;
+
+    blockc_status = load_inverse_sbox(sbox_filename, inverse_sbox);
+    if (BLOCKC_OK != blockc_status) return blockc_status;
+
+    // Expandir la llave
+    key_expansion(K, sbox, sub_keys);
+
+    // Descifrado
+    for (int i = 2; i >= 0; i--) {
+        printf("\nIteracion %d:\n", 3 - i);
+        L = get_8MSB(C); R = get_8LSB(C);
+        L = inverse_sbox[L]; R = inverse_sbox[R];
+
+        printf("\nC <- S^-1(%04X)", C);
+        C = shuffle_bytes(L, R);
+        printf(": %04X", C);
+
+        printf("\nC <- %04X ^ %04X", C, sub_keys[i]);
+        C = C ^ sub_keys[i];
+        printf(": %04X\n", C);
+    }
+
+    unformat_block(C, string);
+
+    printf("\n>> El bloque descifrado es: %04X -> %s", C, string);
 
     return BLOCKC_OK;
 }
