@@ -25,6 +25,10 @@ static void shuffle_array(int size, unsigned char array[size]);
 static void generate_textfile_name(char name[], int max_size, int sbox_size);
 static BlockCStatus store_permutation(int size, unsigned char array[size], char textfile_name[]);
 BlockCStatus sbox_generator();
+BlockCStatus permutation_generator();
+BlockCStatus load_permutation(char filename[], unsigned char P[8]);
+BlockCStatus load_inverse_permutation(char filename[], unsigned char P_inv[8]);
+static unsigned char apply_permutation(unsigned char P[8], unsigned char s);
 BlockCStatus secret_key_generator();
 static void read_string(int size, char string[size]);
 static BlockCStatus load_sbox(char sbox_filename[], unsigned char sbox[]);
@@ -60,9 +64,10 @@ int main(int argc, char const *argv[])
         printf(">> Elije una de las opciones:\n\n");
         printf("1.- Generar una S-Box de 8 bits\n");
         printf("2.- Generar una clave secreta\n");
-        printf("3.- Cifrar un plaintext\n");
-        printf("4.- Descifrar un ciphertext\n");
-        printf("5.- Salir del programa\n\n");
+        printf("3.- Generar una permutacion de 8 bits\n");
+        printf("4.- Cifrar un plaintext\n");
+        printf("5.- Descifrar un ciphertext\n");
+        printf("6.- Salir del programa\n\n");
         printf("Opcion: ");
         scanf("%d", &option);
         clean_buffer();
@@ -88,6 +93,14 @@ int main(int argc, char const *argv[])
             wait_key();
             break;
         case 3:
+            blockc_status = permutation_generator();
+            if (BLOCKC_OK == blockc_status)
+                printf("\n>>> La permutación se guardo correctamente");
+            if (BLOCKC_SBOX_OPEN_FILE_ERROR == blockc_status)
+                printf("\n>>> Hubo un error al abrir el archivo de la permutación");
+            wait_key();
+            break;
+        case 4:
             printf("\n>> Escribe el nombre del archivo con la llave: ");
             read_string(sizeof(key_filename), key_filename);
             printf(">> Escribe el nombre del archivo con la S-Box: ");
@@ -110,7 +123,7 @@ int main(int argc, char const *argv[])
             }
             wait_key();
             break;
-        case 4:
+        case 5:
             printf("\n>> Nombre del la llave (.txt): ");
             read_string(sizeof(key_filename), key_filename);
             printf(">> Nombre de la S-Box (.txt): ");
@@ -133,7 +146,7 @@ int main(int argc, char const *argv[])
             }
             wait_key();
             break;
-        case 5:
+        case 6:
             printf("\n>> Gracias por probar el programa");
             break;
         default:
@@ -141,7 +154,7 @@ int main(int argc, char const *argv[])
             wait_key();
             break;
         }
-    } while (option != 5);
+    } while (option != 6);
     return 0;
 }
 
@@ -502,7 +515,7 @@ static void key_expansion(unsigned short K, unsigned char sbox[], unsigned short
 BlockCStatus encrypt(char sbox_filename[], char key_filename[], char block[], unsigned short sub_keys[])
 {
     unsigned short K;
-    unsigned char sbox[256], L, R;
+    unsigned char sbox[256], L, R, P[8];
     unsigned short M = format_block(block);
     char string[3];
     BlockCStatus blockc_status;
@@ -513,6 +526,10 @@ BlockCStatus encrypt(char sbox_filename[], char key_filename[], char block[], un
         return blockc_status;
 
     blockc_status = load_sbox(sbox_filename, sbox);
+    if (BLOCKC_OK != blockc_status)
+        return blockc_status;
+
+    blockc_status = load_permutation("permutation.txt", P);
     if (BLOCKC_OK != blockc_status)
         return blockc_status;
 
@@ -531,6 +548,8 @@ BlockCStatus encrypt(char sbox_filename[], char key_filename[], char block[], un
         R = get_8LSB(M);
         L = sbox[L];
         R = sbox[R];
+        L = apply_permutation(P, L);
+        R = apply_permutation(P, R);
 
         printf("\nM <- S(%04X)", M);
         M = shuffle_bytes(L, R);
@@ -539,7 +558,7 @@ BlockCStatus encrypt(char sbox_filename[], char key_filename[], char block[], un
 
     unformat_block(M, string);
 
-    printf("\n>> El bloque cifrado es: %04X -> %s", M, string);
+    printf("\n>> El bloque cifrado es: %04X -> (%s)", M, string);
 
     return BLOCKC_OK;
 }
@@ -609,7 +628,7 @@ static void unformat_block(unsigned short value, char block[])
 BlockCStatus decrypt(char sbox_filename[], char key_filename[], char block[], unsigned short sub_keys[])
 {
     unsigned short K;
-    unsigned char sbox[256], sbox_inversa[256], A, B;
+    unsigned char sbox[256], sbox_inversa[256], A, B, P_inv[8];
     unsigned short C = format_block(block);
     char string[3];
     BlockCStatus blockc_status;
@@ -625,6 +644,9 @@ BlockCStatus decrypt(char sbox_filename[], char key_filename[], char block[], un
     blockc_status = load_inverse_sbox(sbox_filename, sbox_inversa);
     if (BLOCKC_OK != blockc_status)
         return blockc_status;
+    blockc_status = load_inverse_permutation("permutation.txt", P_inv);
+    if (BLOCKC_OK != blockc_status)
+        return blockc_status;
 
     key_expansion(K, sbox, sub_keys, 1);
 
@@ -633,8 +655,10 @@ BlockCStatus decrypt(char sbox_filename[], char key_filename[], char block[], un
     for (int i = 2; i >= 0; i--)
     {
         printf("\nIteracion %d:\n", 3 - i);
-        A = sbox_inversa[get_8MSB(C)];
-        B = sbox_inversa[get_8LSB(C)];
+        A = apply_permutation(P_inv, get_8MSB(C));
+        B = apply_permutation(P_inv, get_8LSB(C));
+        A = sbox_inversa[A];
+        B = sbox_inversa[B];
 
         printf("\nC <- SBOX INVERSA( %04X )", C);
         C = shuffle_bytes(A, B);
@@ -650,4 +674,77 @@ BlockCStatus decrypt(char sbox_filename[], char key_filename[], char block[], un
     printf("\n>> El bloque descifrado es: %04X -> %s", C, string);
 
     return BLOCKC_OK;
+}
+
+BlockCStatus permutation_generator()
+{
+    unsigned char P[8];
+
+    for (int i = 0; i < 8; i++)
+        P[i] = (unsigned char)(i + 1);
+
+    for (int i = 7; i > 0; i--)
+    {
+        int j = rand() % (i + 1);
+        unsigned char temp = P[i];
+        P[i] = P[j];
+        P[j] = temp;
+    }
+
+    FILE *fp = fopen("permutation.txt", "w");
+    if (!fp)
+        return BLOCKC_SBOX_OPEN_FILE_ERROR;
+
+    for (int i = 0; i < 8; i++)
+    {
+        fprintf(fp, "%d\n", P[i]);
+    }
+
+    fclose(fp);
+    return BLOCKC_OK;
+}
+
+BlockCStatus load_permutation(char filename[], unsigned char P[8])
+{
+    FILE *fp = fopen(filename, "r");
+    if (!fp)
+        return BLOCKC_SBOX_OPEN_FILE_ERROR;
+
+    int input, output = 0;
+    while (output < 8 && fscanf(fp, "%d", &input) == 1)
+    {
+        P[output++] = (unsigned char)(input - 1);
+    }
+
+    fclose(fp);
+    return BLOCKC_OK;
+}
+
+BlockCStatus load_inverse_permutation(char filename[], unsigned char P_inv[8])
+{
+    FILE *fp = fopen(filename, "r");
+    if (!fp)
+        return BLOCKC_SBOX_OPEN_FILE_ERROR;
+
+    int input, output = 0;
+    while (output < 8 && fscanf(fp, "%d", &input) == 1)
+    {
+        // En la posición que diga el archivo, guardamos 'i' (la posición actual)
+        P_inv[input - 1] = (unsigned char)output;
+        output++;
+    }
+
+    fclose(fp);
+    return BLOCKC_OK;
+}
+
+static unsigned char apply_permutation(unsigned char P[8], unsigned char s)
+{
+    unsigned char result = 0;
+    for (int i = 0; i < 8; i++)
+    {
+        unsigned char bit = (s >> P[i]) & 1;
+        result |= (bit << i);
+    }
+    return result;
 }
