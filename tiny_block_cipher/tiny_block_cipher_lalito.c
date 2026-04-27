@@ -743,8 +743,8 @@ static unsigned char apply_permutation(unsigned char P[8], unsigned char s)
     unsigned char result = 0;
     for (int i = 0; i < 8; i++)
     {
-        unsigned char bit = (s >> P[i]) & 1;
-        result |= (bit << i);
+        unsigned char bit = (s >> (7 - P[i])) & 1;
+        result |= (bit << (7 - i));
     }
     return result;
 }
