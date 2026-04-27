@@ -52,12 +52,12 @@ static unsigned char permute_bits(unsigned char S, int P[PBOX_SIZE]);
 BlockCStatus encrypt(char sbox_filename[], char key_filename[], char pbox_filename[], char block[], unsigned short sub_keys[]);
 static void unformat_block(unsigned short value, char block[]);
 static void inverse_sbox(unsigned char sbox[SBOX_SIZE], unsigned char inv_sbox[SBOX_SIZE]);
-BlockCStatus decrypt(char sbox_filename[], char key_filename[], char pbox_filename[], char block[], unsigned short sub_keys[]);
+BlockCStatus decrypt(char sbox_filename[], char key_filename[], char pbox_filename[], unsigned short C, unsigned short sub_keys[]);
 
 int main(int argc, char const *argv[]) {
     int option = 0;
     char key_filename[100], sbox_filename[100], pbox_filename[100], block[10];
-    unsigned short sub_keys[3];
+    unsigned short sub_keys[3], C;
     BlockCStatus blockc_status;
 
     srand(time(NULL));
@@ -127,19 +127,16 @@ int main(int argc, char const *argv[]) {
                 read_string(sizeof(sbox_filename), sbox_filename);
                 printf(">> Escribe el nombre del archivo con la P-Box: ");
                 read_string(sizeof(pbox_filename), pbox_filename);
-                printf(">> Escribe el bloque a descifrar (2 caracteres): ");
-                read_string(sizeof(block), block);
-                if (strlen(block) == 2) {
-                    blockc_status = decrypt(sbox_filename, key_filename, pbox_filename, block, sub_keys);
-                    if (BLOCKC_KEY_OPEN_FILE_ERROR == blockc_status) printf("\n>>> Hubo un error al cargar la llave");
-                    if (BLOCKC_KEY_READ_ERROR == blockc_status) printf("\n>>> Hubo un erro al leer la llave");
-                    if (BLOCKC_SBOX_OPEN_FILE_ERROR == blockc_status) printf("\n>>> Hubo un error al cargar la S-Box");
-                    if (BLOCKC_PBOX_OPEN_FILE_ERROR == blockc_status) printf("\n>>> Hubo un error al cargar la P-Box");
-                    if (BLOCKC_PBOX_OUT_OF_THE_RANGE_ERROR == blockc_status) printf("\n>>> El tamano de la P-Box es incorrecto");
-                    if (BLOCKC_PBOX_REPEATED_VALUES_ERROR == blockc_status) printf("\n>>> Hay valores repetidos en la P-Box");
-                } else {
-                    printf("\n>> El tamano del bloque no es correcto");
-                }
+                printf(">> Escribe el bloque a descifrar (hexadecimal): ");
+                scanf("%X", &C);
+                
+                blockc_status = decrypt(sbox_filename, key_filename, pbox_filename, C, sub_keys);
+                if (BLOCKC_KEY_OPEN_FILE_ERROR == blockc_status) printf("\n>>> Hubo un error al cargar la llave");
+                if (BLOCKC_KEY_READ_ERROR == blockc_status) printf("\n>>> Hubo un erro al leer la llave");
+                if (BLOCKC_SBOX_OPEN_FILE_ERROR == blockc_status) printf("\n>>> Hubo un error al cargar la S-Box");
+                if (BLOCKC_PBOX_OPEN_FILE_ERROR == blockc_status) printf("\n>>> Hubo un error al cargar la P-Box");
+                if (BLOCKC_PBOX_OUT_OF_THE_RANGE_ERROR == blockc_status) printf("\n>>> El tamano de la P-Box es incorrecto");
+                if (BLOCKC_PBOX_REPEATED_VALUES_ERROR == blockc_status) printf("\n>>> Hay valores repetidos en la P-Box");
                 wait_key();
                 break;
             case 6:
@@ -666,9 +663,9 @@ BlockCStatus encrypt(char sbox_filename[], char key_filename[], char pbox_filena
  * @param block Arreglo donde se guardan los 2 caracteres.
  */
 static void unformat_block(unsigned short value, char block[]) {
-    block[0] = (value >> 8) & 0xFF;
-    block[1] = value & 0xFF;
-    block[2] = '\0';
+    block[0] = (unsigned char)(value >> 8) & 0xFF;
+    block[1] = (unsigned char)value & 0xFF;
+    //block[2] = '\0';
 }
 
 /**
@@ -701,8 +698,9 @@ static void inverse_sbox(unsigned char sbox[SBOX_SIZE], unsigned char inv_sbox[S
  * - BLOCKC_PBOX_OUT_OF_THE_RANGE_ERROR si el tamaño de la P-Box es incorrecto.
  * - BLOCKC_PBOX_REPEATED_VALUES_ERROR si hay valores repetidos en la P-Box.
  */
-BlockCStatus decrypt(char sbox_filename[], char key_filename[], char pbox_filename[], char block[], unsigned short sub_keys[]) {
-    unsigned short K, C = format_block(block);
+BlockCStatus decrypt(char sbox_filename[], char key_filename[], char pbox_filename[], unsigned short C, unsigned short sub_keys[]) {
+    //unsigned short K, C = format_block(block);
+    unsigned short K;
     unsigned char sbox[SBOX_SIZE], inv_sbox[SBOX_SIZE], L, R;
     char string[3];
     int pbox[PBOX_SIZE], inv_pbox[PBOX_SIZE];
