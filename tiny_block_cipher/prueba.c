@@ -1,9 +1,3 @@
-/**
- * Pequeño cifrador de bloque.
- *
- *
- */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -44,13 +38,13 @@ static void key_expansion(unsigned short K, unsigned char sbox[], unsigned short
 BlockCStatus encrypt(char sbox_filename[], char key_filename[], char block[], unsigned short sub_keys[]);
 static BlockCStatus load_inverse_sbox(char sbox_filename[], unsigned char inverse_sbox[]);
 static void unformat_block(unsigned short value, char block[]);
-BlockCStatus decrypt(char sbox_filename[], char key_filename[], char block[], unsigned short sub_keys[]);
+BlockCStatus decrypt(char sbox_filename[], char key_filename[], unsigned short block, unsigned short sub_keys[]);
 
 int main(int argc, char const *argv[])
 {
     int option = 0;
     char key_filename[100], sbox_filename[100], block[10];
-    unsigned short sub_keys[3];
+    unsigned short sub_keys[3], C;
     BlockCStatus blockc_status;
 
     srand(time(NULL));
@@ -128,22 +122,15 @@ int main(int argc, char const *argv[])
             read_string(sizeof(key_filename), key_filename);
             printf(">> Nombre de la S-Box (.txt): ");
             read_string(sizeof(sbox_filename), sbox_filename);
-            printf(">> Escribe el bloque a descifrar (2 caracteres): ");
-            read_string(sizeof(block), block);
-            if (strlen(block) == 2)
-            {
-                blockc_status = decrypt(sbox_filename, key_filename, block, sub_keys);
-                if (BLOCKC_KEY_OPEN_FILE_ERROR == blockc_status)
-                    printf("\n>>> Hubo un error al cargar la llave");
-                if (BLOCKC_SBOX_OPEN_FILE_ERROR == blockc_status)
-                    printf("\n>>> Hubo un error al cargar la S-Box o la S-Box inversa");
-                if (BLOCKC_KEY_READ_ERROR == blockc_status)
-                    printf("\n>>> Hubo un erro al leer la llave");
-            }
-            else
-            {
-                printf("\n>> El tamano del bloque no es correcto");
-            }
+            printf(">> Escribe el hexadecimal a descifrar: ");
+            scanf("%X", &C);
+            blockc_status = decrypt(sbox_filename, key_filename, C, sub_keys);
+            if (BLOCKC_KEY_OPEN_FILE_ERROR == blockc_status)
+                printf("\n>>> Hubo un error al cargar la llave");
+            if (BLOCKC_SBOX_OPEN_FILE_ERROR == blockc_status)
+                printf("\n>>> Hubo un error al cargar la S-Box o la S-Box inversa");
+            if (BLOCKC_KEY_READ_ERROR == blockc_status)
+                printf("\n>>> Hubo un erro al leer la llave");
             wait_key();
             break;
         case 6:
@@ -571,7 +558,7 @@ BlockCStatus encrypt(char sbox_filename[], char key_filename[], char block[], un
 
     unformat_block(M, string);
 
-    printf("\n>> El bloque cifrado es: %04X -> (%s)", M, string);
+    printf("\n>> El bloque cifrado es: %04X -> (%c%c)", M, string[0], string[1]);
 
     return BLOCKC_OK;
 }
@@ -625,11 +612,11 @@ static BlockCStatus load_inverse_sbox(char sbox_filename[], unsigned char sbox_i
  * - BLOCKC_KEY_OPEN_FILE_ERROR si hubo un error al cargar la llave.
  * - BLOCKC_KEY_READ_ERROR si hubo un error al leer la llave.
  */
-BlockCStatus decrypt(char sbox_filename[], char key_filename[], char block[], unsigned short sub_keys[])
+BlockCStatus decrypt(char sbox_filename[], char key_filename[], unsigned short block, unsigned short sub_keys[])
 {
     unsigned short K;
     unsigned char sbox[256], sbox_inversa[256], A, B, P_inv[8];
-    unsigned short C = format_block(block);
+    // unsigned short C = format_block(block);
     char string[3];
     BlockCStatus blockc_status;
 
@@ -650,28 +637,28 @@ BlockCStatus decrypt(char sbox_filename[], char key_filename[], char block[], un
 
     key_expansion(K, sbox, sub_keys, 1);
 
-    printf("\n Caracteres cifrados: %04X (%c%c)\n", C, block[0], block[1]);
+    printf("\n Caracteres cifrados: %04X (%c%c)\n", block, (char)(block >> 8), (char)(block & 0xFF));
 
     for (int i = 2; i >= 0; i--)
     {
         printf("\nIteracion %d:\n", 3 - i);
-        A = apply_permutation(P_inv, get_8MSB(C));
-        B = apply_permutation(P_inv, get_8LSB(C));
+        A = apply_permutation(P_inv, get_8MSB(block));
+        B = apply_permutation(P_inv, get_8LSB(block));
         A = sbox_inversa[A];
         B = sbox_inversa[B];
 
-        printf("\nC <- SBOX INVERSA( %04X )", C);
-        C = shuffle_bytes(A, B);
-        printf(". Cambio en la sbox inversa: %04X", C);
+        printf("\nC <- SBOX INVERSA( %04X )", block);
+        block = shuffle_bytes(A, B);
+        printf(". Cambio en la sbox inversa: %04X", block);
 
-        printf("\nC <- %X XOR %X", C, sub_keys[i]);
-        C = C ^ sub_keys[i];
-        printf(": %04X\n", C);
+        printf("\nC <- %X XOR %X", block, sub_keys[i]);
+        block = block ^ sub_keys[i];
+        printf(": %04X\n", block);
     }
 
-    unformat_block(C, string);
+    unformat_block(block, string);
 
-    printf("\n>> El bloque descifrado es: %04X -> %s", C, string);
+    printf("\n>> El bloque descifrado es: %04X -> %c%c", block, string[0], string[1]);
 
     return BLOCKC_OK;
 }
