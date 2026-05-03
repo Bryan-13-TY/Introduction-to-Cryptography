@@ -12,6 +12,7 @@ int main(int argc, char const *argv[]) {
     srand(time(NULL));
     
     char plaintext[100000];
+    char ciphertext[100000];
     unsigned char C0 = rand() % 256;
     unsigned char C1 = 0;
     unsigned short plaintext_blocks[50000];
@@ -25,9 +26,11 @@ int main(int argc, char const *argv[]) {
     printf("\n\nBloques del plaintext:\n");
     divide_blocks(plaintext, strlen(plaintext), plaintext_blocks);
 
+    /*
     for (int i = 0; i < strlen(plaintext) / 2; i++) {
         printf("Block[%d]: %04X\n", i, plaintext_blocks[i]);
     }
+    */
 
 
     //printf("Valor de C0: %02X", C0);
@@ -45,24 +48,6 @@ static void read_string(int size, char string[size]) {
         string[strcspn(string, "\n")] = '\0';
     } else {
         string[0] = '\0';
-    }
-}
-
-static void divide_blocks(char plaintext[], int size_plaintext, unsigned short blocks[]) {
-    unsigned char block_temp[2];
-    
-    int i = 0, j = 0;
-    while (i < size_plaintext) {
-        block_temp[0] = plaintext[i];
-
-        if (i + 1 < size_plaintext) {
-            block_temp[1] = plaintext[i + 1];
-        } else {
-            block_temp[1] = 0x00; // padding
-        }
-
-        blocks[j] = format_block(block_temp);
-        i+=2; j++;
     }
 }
 
@@ -86,4 +71,23 @@ static unsigned short format_block(char block[]) {
 static void unformat_block(unsigned short value, char block[]) {
     block[0] = (unsigned char)(value >> 8) & 0xFF;
     block[1] = (unsigned char)value & 0xFF;
+}
+
+static void divide_blocks(char plaintext[], int size_plaintext, unsigned short blocks[]) {
+    unsigned char block_temp[2];
+    
+    int i = 0, j = 0;
+    while (i < size_plaintext) {
+        block_temp[0] = plaintext[i];
+
+        if (i + 1 < size_plaintext) {
+            block_temp[1] = plaintext[i + 1];
+        } else {
+            block_temp[1] = 0x00; // padding
+        }
+
+        blocks[j] = format_block(block_temp);
+        i+=2;
+        j++;
+    }
 }
