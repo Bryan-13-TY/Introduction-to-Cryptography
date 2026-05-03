@@ -1,7 +1,7 @@
 CC = gcc
 CFLAGS = -Iinclude -Wall
 
-SRC = src/main.c src/ctr_crypto.c src/utils.c
+SRC = src/main.c src/ctr_crypto.c src/utils.c src/ctr_status.c
 
 TARGET = programa.exe
 
