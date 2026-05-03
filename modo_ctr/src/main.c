@@ -10,7 +10,7 @@ int main(int argc, char const *argv[]) {
     char key_filename[100];
     char sbox_filename[100];
     char pbox_filename[100];
-    char plaintext[100000];
+    char plaintext[10000];
     char ciphertext_filename[100];
     CTRStatus ctr_status;
 
@@ -36,20 +36,19 @@ int main(int argc, char const *argv[]) {
             case 1:
                 ctr_status = sbox_generator();
                 if (CTR_OK == ctr_status) printf("\n>>> La S-Box se guardo correctamente");
-                if (CTR_SBOX_MEMORY_ERROR == ctr_status) printf("\n>>> Hubo un error al reservar memoria para la S-Box");
-                if (CTR_SBOX_GENERATION_ERROR == ctr_status) printf("\n>>> Hubo un error al generar y guardar la S-Box");
+                show_possible_error(ctr_status);
                 wait_key();
                 break;
             case 2:
                 ctr_status = secret_key_generator();
                 if (CTR_OK == ctr_status) printf("\n>>> La llave secreta se guardo correctamente");
-                if (CTR_KEY_GENERATION_ERROR == ctr_status) printf("\n>>> Hubo un error al generar y guardar la llave");
+                show_possible_error(ctr_status);
                 wait_key();
                 break;
             case 3:
                 ctr_status = pbox_generator();
                 if (CTR_OK == ctr_status) printf("\n>>> La P-Box se guardo correctamente");
-                if (CTR_PBOX_GENERATION_ERROR == ctr_status) printf("\n>>> Hubo un error al generar y guardar la P-Box");
+                show_possible_error(ctr_status);
                 wait_key();
                 break;
             case 4:
@@ -61,14 +60,14 @@ int main(int argc, char const *argv[]) {
                 read_string(sizeof(pbox_filename), pbox_filename);
                 printf(">> Escribe el texto a cifrar: ");
                 read_string(sizeof(plaintext), plaintext);
-                ctr_status = encrypt_ctr(sbox_filename, key_filename, pbox_filename, plaintext, strlen(plaintext));
-                if (CTR_KEY_OPEN_FILE_ERROR == ctr_status) printf("\n>>> Hubo un error al cargar la llave");
-                if (CTR_KEY_READ_ERROR == ctr_status) printf("\n>>> Hubo un erro al leer la llave");
-                if (CTR_SBOX_OPEN_FILE_ERROR == ctr_status) printf("\n>>> Hubo un error al cargar la S-Box");
-                if (CTR_PBOX_OPEN_FILE_ERROR == ctr_status) printf("\n>>> Hubo un error al cargar la P-Box");
-                if (CTR_PBOX_OUT_OF_THE_RANGE_ERROR == ctr_status) printf("\n>>> El tamano de la P-Box es incorrecto");
-                if (CTR_PBOX_REPEATED_VALUES_ERROR == ctr_status) printf("\n>>> Hay valores repetidos en la P-Box");
-                if (CTR_CIPHER_GENERATION_ERROR == ctr_status) printf("\n>>> Hubo un error al generar y guardar el texto cifrado");
+
+                if (strlen(plaintext) < 9998 && strlen(plaintext) > 10) {
+                    ctr_status = encrypt_ctr(sbox_filename, key_filename, pbox_filename, plaintext, strlen(plaintext));
+                    show_possible_error(ctr_status);
+                } else {
+                    printf("\n>>> Minimo 10 y maximo 9998 caracteres para el texto");
+                }
+                
                 wait_key();
                 break;
             case 5:
@@ -81,16 +80,7 @@ int main(int argc, char const *argv[]) {
                 printf(">> Escribe el nombre del archivo con el ciphertext: ");
                 read_string(sizeof(ciphertext_filename), ciphertext_filename);
                 ctr_status = decrypt_ctr(sbox_filename, key_filename, pbox_filename, ciphertext_filename);
-                if (CTR_KEY_OPEN_FILE_ERROR == ctr_status) printf("\n>>> Hubo un error al cargar la llave");
-                if (CTR_KEY_READ_ERROR == ctr_status) printf("\n>>> Hubo un erro al leer la llave");
-                if (CTR_SBOX_OPEN_FILE_ERROR == ctr_status) printf("\n>>> Hubo un error al cargar la S-Box");
-                if (CTR_PBOX_OPEN_FILE_ERROR == ctr_status) printf("\n>>> Hubo un error al cargar la P-Box");
-                if (CTR_PBOX_OUT_OF_THE_RANGE_ERROR == ctr_status) printf("\n>>> El tamano de la P-Box es incorrecto");
-                if (CTR_PBOX_REPEATED_VALUES_ERROR == ctr_status) printf("\n>>> Hay valores repetidos en la P-Box");
-                if (CTR_CIPHER_OPEN_FILE_ERROR == ctr_status) printf("\n>>> Hubo un error al cargar el texto cifrado");
-                if (CTR_COUNTER_READ_ERROR == ctr_status) printf("\n>>> Hubo un error al leer el byte alto del contador del modo CTR");
-                if (CTR_NUM_BLOCKS_READ_ERROR == ctr_status) printf("\n>>> Hubo un error al leer el numero de bloques del ciphertext");
-                if (CTR_CIPHERTEXT_READ_ERROR == ctr_status) printf("\n>>> Hubo un error el leer los bloques del ciphertext");
+                show_possible_error(ctr_status);
                 wait_key();
                 break;
             case 6:
