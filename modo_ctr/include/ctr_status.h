@@ -24,9 +24,17 @@ typedef enum {
     CTR_PBOX_REPEATED_VALUES_ERROR = -10, /**< Error con valores repetidos en la P-Box */
     CTR_CIPHER_OPEN_FILE_ERROR = -11, /**< Error al abrir el archivo del ciphertext */
     CTR_CIPHER_GENERATION_ERROR = -12, /**< Error el generar el ciphertext */
-    CTR_COUNTER_READ_ERROR = -13, /**< Error al leer el byte alto del contador del modo CTR */
-    CTR_NUM_BLOCKS_READ_ERROR = -14, /**< Error al leer el número de bloques en las que se dividio el plaintext */
-    CTR_CIPHERTEXT_READ_ERROR = -15, /**< Error al leer el ciphertext */
+    CTR_CIPHER_READ_ERROR = -13, /**< Error al leer el ciphertext */
+    CTR_COUNTER_READ_ERROR = -14, /**< Error al leer el byte alto del contador del modo CTR */
+    CTR_NUM_BLOCKS_READ_ERROR = -15, /**< Error al leer el número de bloques en las que se dividio el plaintext */
+    
 } CTRStatus;
+
+/**
+ * @brief Muestra el posible erro de algunas de la funciones para el modo CTR.
+ * 
+ * @param ctr_status Posible error.
+ */
+void show_possible_error(CTRStatus ctr_status);
 
 #endif /* CTR_STATUS_H */
