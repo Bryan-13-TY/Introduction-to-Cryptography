@@ -1,9 +1,9 @@
 CC = gcc
 CFLAGS = -Iinclude -Wall
 
-SRC = src/main.c src/ctr_crypto.c src/utils.c
+SRC = src/main.c src/ctr_crypto.c src/utils_crypto.c src/ctr_status.c
 
-TARGET = programa.exe
+TARGET = modo_ctr.exe
 
 all: data $(TARGET)
 

@@ -1,5 +1,4 @@
 #include "ctr_crypto.h"
-#include "utils.h"
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -625,7 +624,7 @@ static CTRStatus load_ciphertext(
     for (int i = 0; i < *num_blocks; i++) {
         if (fscanf(fp, " %hX", &ciphertext[i]) != 1) {
             fclose(fp);
-            return CTR_CIPHERTEXT_READ_ERROR;
+            return CTR_CIPHER_READ_ERROR;
         }
     }
 
@@ -666,8 +665,8 @@ CTRStatus decrypt_ctr(
     int num_blocks;
 
     // Reservamos espacio para el ciphertext y el plaintext
-    unsigned short ciphertext[100000];
-    unsigned short plaintext[100000];
+    unsigned short ciphertext[5000];
+    unsigned short plaintext[5000];
 
     CTRStatus ctr_status;
 
