@@ -128,6 +128,7 @@ int main(int argc, char const *argv[])
                                              input_filename, output_filename);
             if (BLOCKC_OK != blockc_status)
                 printf("\n>>> Error durante el descifrado CTR");
+            wait_key();
             break;
         case 6:
             printf("\n>> Gracias por probar el programa");
@@ -641,8 +642,10 @@ BlockCStatus ctr_encrypt_file(char sbox_filename[], char key_filename[], char in
         M_block = plaintext[i] << 8;
         if (i + 1 < bytes_read)
             M_block |= plaintext[i + 1];
+        // Si el archivo tiene un número impar de bytes, el último bloque se completa con un byte de valor 0
 
         unsigned short Y = M_block ^ X;
+
         fprintf(output_fp, "%04X", Y);
         ciphertext_len += 2;
 
@@ -650,7 +653,7 @@ BlockCStatus ctr_encrypt_file(char sbox_filename[], char key_filename[], char in
         if (C1 == 0)
             C0 = (C0 + 1) % 256;
 
-        printf("\n>> Bloque %d: Counter = %04X, TBC = %04X, Cipher Block = %04X", i / 2, cont, X, Y);
+        printf("\n>> Bloque %d: Counter = %04X, TBC = %04X, Cipher Block = %04X", (i / 2) + 1, cont, X, Y);
     }
 
     fclose(output_fp);
@@ -692,6 +695,8 @@ BlockCStatus ctr_decrypt_file(char sbox_filename[], char key_filename[], char in
     }
     unsigned char C0 = (unsigned char)temp;
     unsigned char C1 = 0;
+    unsigned char *mensaje_completo = malloc(65536);
+    int mensaje_len = 0;
     unsigned char *ciphertext = malloc(65536);
     if (!ciphertext)
     {
@@ -733,12 +738,18 @@ BlockCStatus ctr_decrypt_file(char sbox_filename[], char key_filename[], char in
         if (C1 == 0)
             C0 = (C0 + 1) % 256;
 
-        printf("\n>> Bloque %04d: Counter = %04X, TBC = %04X, Text block = %04X", i / 2, cont, X, M);
-    }
+        char caracteres[3];
+        unformat_block(M, caracteres);
+        mensaje_completo[mensaje_len++] = caracteres[0];
+        mensaje_completo[mensaje_len++] = caracteres[1];
 
+        printf("\n>> Bloque %d: Counter = %04X, TBC = %04X, Text block = %04X", (i / 2) + 1, cont, X, M);
+    }
+    mensaje_completo[mensaje_len] = '\0';
     fclose(output_fp);
     free(ciphertext);
-    // printf("\n>> Texto descifrado es: %s", M);
+
+    printf("\n>> Texto descifrado: %s\n", mensaje_completo);
     printf("\n>> Archivo descifrado guardado en: %s", output_filename);
 
     return BLOCKC_OK;
