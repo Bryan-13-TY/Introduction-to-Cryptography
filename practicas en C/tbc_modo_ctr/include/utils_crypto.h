@@ -10,6 +10,6 @@ void clean_buffer();
  * @param size Tamaño del arreglo de la cadena.
  * @param string Cadena leida.
  */
-void read_string(int size, char string[size]);
+void read_string(int size, char string[]);
 
 #endif /* UTILS_H */
