@@ -1,7 +1,6 @@
 """Cifrado usando Shift Cipher."""
 
 from config import BASE_DIR
-from constants import SPANISH_ALPHABET
 from decorators import validate_file
 from utils import (
     clean_console,
@@ -12,6 +11,8 @@ from utils import (
 )
 
 __all__ = ["shift_cipher_menu"]
+
+SPANISH_ALPHABET = "ABCDEFGHIJKLMNÑOPQRSTUVWXY "
 
 @validate_file("plaintext_file")
 def _encrypt_shift(
