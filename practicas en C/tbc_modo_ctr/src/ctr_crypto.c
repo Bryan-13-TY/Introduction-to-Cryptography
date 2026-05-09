@@ -2,9 +2,21 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define DATA_DIR "data/"
+#define SBOX_FILENAME "data/sbox.txt"
+#define PBOX_FILENAME "data/pbox.txt"
+#define KEY_FILENAME "data/key.txt"
+#define CIPHER_FILENAME "data/ciphertext.txt"
 #define PBOX_SIZE 8
 #define SBOX_SIZE 256
+
+typedef struct {
+    unsigned char sbox[SBOX_SIZE];
+    int pbox[PBOX_SIZE];
+    unsigned short K;
+    unsigned short sub_keys[3];
+} CTRContext;
+
+static CTRContext ctr_data;
 
 /* ---------- FUNCIONES PARA OBTENER 4MSB, 4LSB, 8MSB, 8LSB ---------- */
 
@@ -101,8 +113,8 @@ static unsigned char permute_bits(unsigned char S, int P[PBOX_SIZE]) {
  * 
  * @return Cadena como bloque de 2 bytes.
  */
-static unsigned short format_block(char block[]) {
-    return ((unsigned char)block[0] << 8) | (unsigned char)block[1];
+static unsigned short format_block(unsigned char block[]) {
+    return (block[0] << 8) | block[1];
 }
 
 /**
@@ -121,7 +133,7 @@ static void unformat_block(unsigned short value, char block[]) {
 CTRStatus secret_key_generator() {
     unsigned short K = rand() % 65536;
 
-    FILE *fp = fopen(DATA_DIR "key.txt", "w");
+    FILE *fp = fopen(KEY_FILENAME, "w");
     if (!fp) return CTR_KEY_GENERATION_ERROR;
 
     fprintf(fp, "%04X\n", K);
@@ -132,7 +144,6 @@ CTRStatus secret_key_generator() {
 /**
  * @brief Carga la llave desde un archivo de texto.
  * 
- * @param key_filename Nombre del archivo.
  * @param K Puntero donde se guarda la llave.
  * 
  * @return
@@ -140,16 +151,16 @@ CTRStatus secret_key_generator() {
  * - CTR_KEY_OPEN_FILE_ERROR si hubo un error al abrir al archivo de la llave.
  * - CTR_KEY_READ_ERROR si hubo un error al leer la llave.
  */
-static CTRStatus load_key(char key_filename[], unsigned short *K) {
+static CTRStatus load_key(unsigned short *K) {
     // Ruta completa para la llave
     char full_path[150];
-    snprintf(full_path, sizeof(full_path), DATA_DIR "%s", key_filename);
+    snprintf(full_path, sizeof(full_path), KEY_FILENAME);
     printf(">>> Abriendo archivo: %s\n", full_path);
 
     FILE *fp = fopen(full_path, "r");
     if (!fp) return CTR_KEY_OPEN_FILE_ERROR;
 
-    if (fscanf(fp, "%X", K) != 1) {
+    if (fscanf(fp, "%hX", K) != 1) {
         fclose(fp);
         return CTR_KEY_READ_ERROR;
     }
@@ -163,29 +174,19 @@ static CTRStatus load_key(char key_filename[], unsigned short *K) {
  * @brief Expande la llave secreta en sub-llaves.
  * 
  * @param K LLave original.
- * @param sbox S-Box de 8 bits.
- * @param sub_keys Arreglo donde se guardan las sub-llaves.
  */
-static void key_expansion(unsigned short K, unsigned char sbox[], unsigned short sub_keys[]) {
+static void key_expansion(unsigned short K) {
     unsigned char w0 = get_8MSB(K);
     unsigned char w1 = get_8LSB(K);
-    unsigned char w2 = w0 ^ 0x80 ^ sbox[swap_nibbles(w1)];
+    unsigned char w2 = w0 ^ 0x80 ^ ctr_data.sbox[swap_nibbles(w1)];
     unsigned char w3 = w2 ^ w1;
-    unsigned char w4 = w2 ^ 0x30 ^ sbox[swap_nibbles(w3)];
+    unsigned char w4 = w2 ^ 0x30 ^ ctr_data.sbox[swap_nibbles(w3)];
     unsigned char w5 = w4 ^ w3;
 
-    printf("\n>> Los valores son: \n\n");
-    printf("w0: %02X\n", w0);
-    printf("w1: %02X\n", w1);
-    printf("w2: %02X\n", w2);
-    printf("w3: %02X\n", w3);
-    printf("w4: %02X\n", w4);
-    printf("w5: %02X\n", w5);
-
     // Guardamos las sub-llaves
-    sub_keys[0] = shuffle_bytes(w0, w1);
-    sub_keys[1] = shuffle_bytes(w2, w3);
-    sub_keys[2] = shuffle_bytes(w4, w5);
+    ctr_data.sub_keys[0] = shuffle_bytes(w0, w1);
+    ctr_data.sub_keys[1] = shuffle_bytes(w2, w3);
+    ctr_data.sub_keys[2] = shuffle_bytes(w4, w5);
 }
 
 /* ---------- FUNCIONES PARA LA S-BOX ---------- */
@@ -219,29 +220,17 @@ static void shuffle_array(int size, unsigned char array[]) {
 }
 
 /**
- * @brief Genera el nombre del archivo para almacenas la S-Box.
- * 
- * @param name Arreglo para el nombre del archivo.
- * @param max_size Tamaño del areglo `name`.
- * @param num_bits Número de bits a sustituir.
- */
-static void generate_sbox_path(char name[], int max_size, int sbox_size) {
-    snprintf(name, max_size, DATA_DIR "sbox_%dbits.txt", sbox_size);
-}
-
-/**
  * @brief Almacena la S-Box en un archivo de texto.
  * 
  * @param size Número de entradas de la S-Box.
  * @param array Arreglo con la S-Box.
- * @param textfile_name Nombre del archivo.
  * 
  * @return
  * - CTR_OK si se guardo correctamente.
  * - CTR_SBOX_GENERATION_ERROR si hubo un error al generar y guardar la S-Box.
  */
-static CTRStatus store_sbox(int size, unsigned char array[], char textfile_name[]) {
-    FILE *fp = fopen(textfile_name, "w");
+static CTRStatus store_sbox(int size, unsigned char array[]) {
+    FILE *fp = fopen(SBOX_FILENAME, "w");
     if (!fp) return CTR_SBOX_GENERATION_ERROR;
 
     for (int i = 0; i < size; i++) {
@@ -259,13 +248,10 @@ CTRStatus sbox_generator() {
     unsigned char *array = malloc(size_permutation * sizeof(*array));
     if (!array) return CTR_SBOX_MEMORY_ERROR;
 
-    char textfile_name[50];
-
     fill_array(size_permutation, array);
     shuffle_array(size_permutation, array);
-    generate_sbox_path(textfile_name, sizeof(textfile_name), l);
     
-    CTRStatus ctr_status = store_sbox(size_permutation, array, textfile_name);
+    CTRStatus ctr_status = store_sbox(size_permutation, array);
     
     free(array);
     return ctr_status;
@@ -274,17 +260,16 @@ CTRStatus sbox_generator() {
 /**
  * @brief Carga la S-Box desde un archivo de texto.
  * 
- * @param sbox_filename Nombre del archivo.
  * @param sbox Arreglo en donde se guarda la S-Box.
  * 
  * @return
  * - CTR_OK si se cargo correctamente.
  * - CTR_SBOX_OPEN_FILE_ERROR si hubo un error al abrir el archivo de la S-Box.
  */
-static CTRStatus load_sbox(char sbox_filename[], unsigned char sbox[]) {
+static CTRStatus load_sbox(unsigned char sbox[]) {
     // Ruta completa para la S-Box
     char full_path[150];
-    snprintf(full_path, sizeof(full_path), DATA_DIR "%s", sbox_filename);
+    snprintf(full_path, sizeof(full_path), SBOX_FILENAME);
     printf(">>> Abriendo archivo: %s\n", full_path);
 
     FILE *fp = fopen(full_path, "r");
@@ -339,14 +324,13 @@ static void shuffle_pbox(int P[PBOX_SIZE]) {
  * @brief Almacena la P-Box en un archivo de texto.
  * 
  * @param P Arreglo con la P-Box.
- * @param textfile_name Nombre del archivo.
  * 
  * @return
  * - CTR_OK si se guardo correctamente.
  * - CTR_PBOX_GENERATION_ERROR si hubo un error al generar y guardar la P-Box.
  */
-static CTRStatus store_pbox(int P[PBOX_SIZE], char textfile_name[]) {
-    FILE *fp = fopen(textfile_name, "w");
+static CTRStatus store_pbox(int P[PBOX_SIZE]) {
+    FILE *fp = fopen(PBOX_FILENAME, "w");
     if (!fp) return CTR_PBOX_GENERATION_ERROR;
 
     for (int i = 0; i < PBOX_SIZE; i++) {
@@ -363,7 +347,7 @@ CTRStatus pbox_generator() {
     fill_pbox(P);
     shuffle_pbox(P);
 
-    CTRStatus ctr_status = store_pbox(P, DATA_DIR "permutation.txt");
+    CTRStatus ctr_status = store_pbox(P);
 
     return ctr_status;
 }
@@ -371,7 +355,6 @@ CTRStatus pbox_generator() {
 /**
  * @brief Carga la P-Box desde un archivo de texto.
  * 
- * @param pbox_filename Nombre del archivo.
  * @param P Arreglo donde se guarda la P-Box.
  * 
  * @return
@@ -380,10 +363,10 @@ CTRStatus pbox_generator() {
  * - CTR_PBOX_OUT_OF_THE_RANGE_ERROR si el tamaño de la P-Box es incorrecto. 
  * - CTR_PBOX_REPEATED_VALUES_ERROR si hay valores repetidos en la P-Box.
  */
-static CTRStatus load_pbox(char pbox_filename[], int P[PBOX_SIZE]) {
+static CTRStatus load_pbox(int P[PBOX_SIZE]) {
     // Ruta completa para la P-Box
     char full_path[150];
-    snprintf(full_path, sizeof(full_path), DATA_DIR "%s", pbox_filename);
+    snprintf(full_path, sizeof(full_path), PBOX_FILENAME);
     printf(">>> Abriendo archivo: %s\n", full_path);
 
     FILE *fp = fopen(full_path, "r");
@@ -421,33 +404,60 @@ static CTRStatus load_pbox(char pbox_filename[], int P[PBOX_SIZE]) {
 /* ---------- FUNCIONES PARA CIFRAR Y DESCIFRAR ---------- */
 
 /**
- * @brief Cifra un bloque de 2 bytes.
+ * @brief Carga el contexto para el modo CTR.
  * 
- * @param M Bloque de 2 bytes.
- * @param sub_keys Arreglo con la sub-llaves.
- * @param sbox Arreglo con la S-Box.
- * @param pbox Arreglo con la P-Box.
+ * @return
+ * - CTR_OK si se cargo correctamente.
+ * - CTR_SBOX_OPEN_FILE_ERROR si hubo un error al abrir el archivo de la S-Box.
+ * - CTR_PBOX_OPEN_FILE_ERROR si hubo un error al abrir el archivo de la P-Box.
+ * - CTR_PBOX_OUT_OF_THE_RANGE_ERROR si el tamaño de la P-Box es incorrecto.
+ * - CTR_PBOX_REPEATED_VALUES_ERROR si hay valores repetidos en la P-Box.
+ * - CTR_KEY_OPEN_FILE_ERROR si hubo un error al abrir al archivo de la llave.
+ * - CTR_KEY_READ_ERROR si hubo un error al leer la llave.
+ */
+static CTRStatus load_ctr_context() {
+    CTRStatus ctr_status;
+    
+    ctr_status = load_sbox(ctr_data.sbox);
+    if (CTR_OK != ctr_status) return ctr_status;
+
+    ctr_status = load_pbox(ctr_data.pbox);
+    if (CTR_OK != ctr_status) return ctr_status;
+
+    ctr_status = load_key(&(ctr_data.K));
+    if (CTR_OK != ctr_status) return ctr_status;
+
+    return CTR_OK;
+}
+
+/**
+ * @brief Cifra un bloque de dos bytes.
+ * 
+ * @param M Bloque de dos bytes.
+ * @param K Llave secreta.
  * 
  * @return Bloque cifrado.
  */
-unsigned short encrypt_block(
-    unsigned short M,
-    unsigned short sub_keys[],
-    unsigned char sbox[SBOX_SIZE],
-    int pbox[PBOX_SIZE]
-) {
+static unsigned short encrypt_block(unsigned short M, unsigned short K) {
     unsigned short L, R;
 
-    for (int i = 0; i < 3; i++) {
-        M = M ^ sub_keys[i];
+    // Expandir la llave
+    key_expansion(K);
 
-        L = get_8MSB(M); R = get_8LSB(M);
-        L = sbox[L]; R = sbox[R];
+    for (int i = 0; i < 3; i++) {
+        M = M ^ ctr_data.sub_keys[i];
+
+        L = get_8MSB(M);
+        R = get_8LSB(M);
+        L = ctr_data.sbox[L];
+        R = ctr_data.sbox[R];
 
         M = shuffle_bytes(L, R);
 
-        L = get_8MSB(M); R = get_8LSB(M);
-        L = permute_bits(L, pbox); R = permute_bits(R, pbox);
+        L = get_8MSB(M);
+        R = get_8LSB(M);
+        L = permute_bits(L, ctr_data.pbox);
+        R = permute_bits(R, ctr_data.pbox);
 
         M = shuffle_bytes(L, R);
     }
@@ -477,7 +487,6 @@ static void divide_blocks(char plaintext[], int size_plaintext, unsigned short b
             block_temp[1] = 0x00; // padding
         }
 
-        //printf("\nBlock %d: [%2X|%2X]", j + 1, block_temp[0], block_temp[1]);
         blocks[j] = format_block(block_temp);
         i += 2;
         j++;
@@ -485,27 +494,25 @@ static void divide_blocks(char plaintext[], int size_plaintext, unsigned short b
 }
 
 /**
- * @brief Almacena el texto cifrado.
+ * @brief Almacena el ciphertext en un archivo de texto.
  * 
- * Se incluye el valor de `C0` y el número de bloques del `ciphertext`.
+ * Se incluye el valor de `C0` y el número de bloques del
+ * `ciphertext`.
  * 
- * @param ciphertext_filename Nombre del archivo.
  * @param C0 Byte alto del contador del modo CTR.
  * @param ciphertext Arreglo con el texto cifrado.
- * @param num_blocks Número de bloques del `ciphertext`.
+ * @param num_blocks Número de bloques de `ciphertext`.
  * 
  * @return
  * - CTR_OK si se guardo correctamente.
  * - CTR_CIPHER_GENERATION_ERROR si hubo un error al generar y guardar el texto cifrado.
  */
 static CTRStatus store_ciphertext(
-    char ciphertext_filename[],
     unsigned char C0,
     unsigned short ciphertext[],
     int num_blocks
 ) {
-
-    FILE *fp = fopen(ciphertext_filename, "w");
+    FILE *fp = fopen(CIPHER_FILENAME, "w");
     if (!fp) return CTR_CIPHER_GENERATION_ERROR;
 
     fprintf(fp, "C0: %02X\n", C0);
@@ -519,31 +526,12 @@ static CTRStatus store_ciphertext(
     return CTR_OK;
 }
 
-CTRStatus encrypt_ctr(
-    char sbox_filename[],
-    char key_filename[],
-    char pbox_filename[],
-    char plaintext[],
-    int size_plaintext
-) {
-    unsigned short K;
-    unsigned char sbox[SBOX_SIZE];
-    int pbox[PBOX_SIZE];
-    unsigned short sub_keys[3];
+CTRStatus encrypt_ctr(char plaintext[], int size_plaintext) {
     CTRStatus ctr_status;
-
-    // Cargar la llave, la S-Box y la permutación
-    ctr_status = load_key(key_filename, &K);
+    
+    // Cargar la llave, S-Box y P-Box
+    ctr_status = load_ctr_context();
     if (CTR_OK != ctr_status) return ctr_status;
-
-    ctr_status = load_sbox(sbox_filename, sbox);
-    if (CTR_OK != ctr_status) return ctr_status;
-
-    ctr_status = load_pbox(pbox_filename, pbox);
-    if (CTR_OK != ctr_status) return ctr_status;
-
-    // Expandir la llave
-    key_expansion(K, sbox, sub_keys);
 
     // Dividir en bloques
     int num_blocks = (size_plaintext + 1) / 2; // Considerando padding
@@ -560,8 +548,7 @@ CTRStatus encrypt_ctr(
 
     for (int i = 0; i < num_blocks; i++) {
         unsigned short counter = ((unsigned short)C0 << 8) | C1;
-        
-        unsigned short keystream = encrypt_block(counter, sub_keys, sbox, pbox);
+        unsigned short keystream = encrypt_block(counter, ctr_data.K);
 
         ciphertext[i] = blocks[i] ^ keystream;
 
@@ -573,8 +560,7 @@ CTRStatus encrypt_ctr(
         C1++;
     }
 
-    // Guardamos el ciphertext
-    ctr_status = store_ciphertext(DATA_DIR "ciphertext.txt", C0, ciphertext, num_blocks);
+    ctr_status = store_ciphertext(C0, ciphertext, num_blocks);
     if (CTR_OK != ctr_status) return ctr_status;
 
     return CTR_OK;
@@ -585,7 +571,6 @@ CTRStatus encrypt_ctr(
 /**
  * @brief Carga el texto cifrado desde un archivo de texto.
  * 
- * @param ciphertext_filename Nombre del archivo.
  * @param C0 Variable donde se guarda el byte alto del contador del modo CTR.
  * @param ciphertext Arreglo en donde se guarda el texto cifrado.
  * @param num_blocks Variable en donde se guarda el número de bloques del `ciphertext`.
@@ -598,14 +583,13 @@ CTRStatus encrypt_ctr(
  * - CTR_CIPHERTEXT_READ_ERROR si hubo un error al leer los bloques del ciphertext.
  */
 static CTRStatus load_ciphertext(
-    char ciphertext_filename[],
     unsigned char *C0,
     unsigned short ciphertext[],
     int *num_blocks
 ) {
     // Ruta completa para la P-Box
     char full_path[150];
-    snprintf(full_path, sizeof(full_path), DATA_DIR "%s", ciphertext_filename);
+    snprintf(full_path, sizeof(full_path), CIPHER_FILENAME);
     printf(">>> Abriendo archivo: %s\n", full_path);
 
     FILE *fp = fopen(full_path, "r");
@@ -638,10 +622,7 @@ static CTRStatus load_ciphertext(
  * @param plaintext Arreglo con los bloques descrifrados.
  * @param num_blocks Número de blques del texto cifrado.
  */
-static void rebuild_text(
-    unsigned short plaintext[],
-    int num_blocks
-) {
+static void rebuild_text(unsigned short plaintext[], int num_blocks) {
     for (int i = 0; i < num_blocks; i++) {
         char block[2];
         unformat_block(plaintext[i], block);
@@ -650,41 +631,21 @@ static void rebuild_text(
     }
 }
 
-CTRStatus decrypt_ctr(
-    char sbox_filename[],
-    char key_filename[],
-    char pbox_filename[],
-    char ciphertext_filename[]
-) {
-    unsigned short K;
-    unsigned char sbox[SBOX_SIZE];
-    int pbox[PBOX_SIZE];
-    unsigned short sub_keys[3]; 
-
+CTRStatus decrypt_ctr() {
     unsigned char C0;
     int num_blocks;
-
-    // Reservamos espacio para el ciphertext y el plaintext
     unsigned short ciphertext[5000];
     unsigned short plaintext[5000];
 
     CTRStatus ctr_status;
 
-    // Cargar la llave, la S-Box, la permutación y el ciphertext
-    ctr_status = load_key(key_filename, &K);
+    // Cargar la llave, S-Box y P-Box
+    ctr_status = load_ctr_context();
     if (CTR_OK != ctr_status) return ctr_status;
 
-    ctr_status = load_sbox(sbox_filename, sbox);
+    // Cargar el ciphertext
+    ctr_status = load_ciphertext(&C0, ciphertext, &num_blocks);
     if (CTR_OK != ctr_status) return ctr_status;
-
-    ctr_status = load_pbox(pbox_filename, pbox);
-    if (CTR_OK != ctr_status) return ctr_status;
-
-    ctr_status = load_ciphertext(ciphertext_filename, &C0, ciphertext, &num_blocks);
-    if (CTR_OK != ctr_status) return ctr_status;
-
-    // Expandir la llave
-    key_expansion(K, sbox, sub_keys);
 
     // CTR
     unsigned char C1 = 0;
@@ -693,8 +654,7 @@ CTRStatus decrypt_ctr(
 
     for (int i = 0; i < num_blocks; i++) {
         unsigned short counter = ((unsigned short)C0 << 8) | C1;
-        
-        unsigned short keystream = encrypt_block(counter, sub_keys, sbox, pbox);
+        unsigned short keystream = encrypt_block(counter, ctr_data.K);
 
         plaintext[i] = ciphertext[i] ^ keystream;
 
@@ -705,7 +665,7 @@ CTRStatus decrypt_ctr(
 
         C1++;
     }
-    
+
     // Reconstruir texto
     printf("\n>> El texto original recuperado es:\n\n");
     rebuild_text(plaintext, num_blocks);

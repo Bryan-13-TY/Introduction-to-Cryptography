@@ -7,11 +7,7 @@
 
 int main(int argc, char const *argv[]) {
     int option = 0;
-    char key_filename[100];
-    char sbox_filename[100];
-    char pbox_filename[100];
     char plaintext[10000];
-    char ciphertext_filename[100];
     CTRStatus ctr_status;
 
     srand(time(NULL));
@@ -52,17 +48,11 @@ int main(int argc, char const *argv[]) {
                 wait_key();
                 break;
             case 4:
-                printf("\n>> Escribe el nombre del archivo con la llave: ");
-                read_string(sizeof(key_filename), key_filename);
-                printf(">> Escribe el nombre del archivo con la S-Box: ");
-                read_string(sizeof(sbox_filename), sbox_filename);
-                printf(">> Escribe el nombre del archivo con la P-Box: ");
-                read_string(sizeof(pbox_filename), pbox_filename);
-                printf(">> Escribe el texto a cifrar: ");
+                printf("\n>> Escribe el texto a cifrar: ");
                 read_string(sizeof(plaintext), plaintext);
 
-                if (strlen(plaintext) < 9998 && strlen(plaintext) > 10) {
-                    ctr_status = encrypt_ctr(sbox_filename, key_filename, pbox_filename, plaintext, strlen(plaintext));
+                if (strlen(plaintext) < 9998 || strlen(plaintext) > 10) {
+                    ctr_status = encrypt_ctr(plaintext, strlen(plaintext));
                     show_possible_error(ctr_status);
                 } else {
                     printf("\n>>> Minimo 10 y maximo 9998 caracteres para el texto");
@@ -71,15 +61,7 @@ int main(int argc, char const *argv[]) {
                 wait_key();
                 break;
             case 5:
-                printf("\n>> Escribe el nombre del archivo con la llave: ");
-                read_string(sizeof(key_filename), key_filename);
-                printf(">> Escribe el nombre del archivo con la S-Box: ");
-                read_string(sizeof(sbox_filename), sbox_filename);
-                printf(">> Escribe el nombre del archivo con la P-Box: ");
-                read_string(sizeof(pbox_filename), pbox_filename);
-                printf(">> Escribe el nombre del archivo con el ciphertext: ");
-                read_string(sizeof(ciphertext_filename), ciphertext_filename);
-                ctr_status = decrypt_ctr(sbox_filename, key_filename, pbox_filename, ciphertext_filename);
+                ctr_status = decrypt_ctr();
                 show_possible_error(ctr_status);
                 wait_key();
                 break;
