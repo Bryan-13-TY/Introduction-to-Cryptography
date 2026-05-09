@@ -40,9 +40,9 @@ static void key_expansion(unsigned short K, unsigned char sbox[], unsigned short
 static BlockCStatus load_inverse_sbox(char sbox_filename[], unsigned char inverse_sbox[]);
 static void unformat_block(unsigned short value, char block[]);
 // BlockCStatus decrypt(char sbox_filename[], char key_filename[], unsigned short block, unsigned short sub_keys[]);
-BlockCStatus ctr_encrypt_file(char sbox_filename[], char key_filename[], char input_filename[], char output_filename[]);
-BlockCStatus ctr_decrypt_file(char sbox_filename[], char key_filename[], char input_filename[], char output_filename[]);
-static unsigned short tbc_encrypt(unsigned short block, unsigned short key, unsigned char sbox[], unsigned char P[]);
+BlockCStatus ctr_encrypt_file(char input_filename[], char output_filename[]);
+BlockCStatus ctr_decrypt_file(char input_filename[], char output_filename[]);
+static unsigned short tbc_encrypt(unsigned short block, unsigned short key);
 
 int main(int argc, char const *argv[])
 {
@@ -99,33 +99,23 @@ int main(int argc, char const *argv[])
             wait_key();
             break;
         case 4:
-            printf("\n>> Escribe el nombre del archivo con la llave: ");
-            read_string(sizeof(key_filename), key_filename);
-            printf(">> Escribe el nombre del archivo con la S-Box: ");
-            read_string(sizeof(sbox_filename), sbox_filename);
             printf(">> Escribe el nombre del archivo de entrada: ");
             read_string(sizeof(input_filename), input_filename);
             printf(">> Escribe el nombre del archivo de salida: ");
             read_string(sizeof(output_filename), output_filename);
 
-            blockc_status = ctr_encrypt_file(sbox_filename, key_filename,
-                                             input_filename, output_filename);
+            blockc_status = ctr_encrypt_file(input_filename, output_filename);
             if (BLOCKC_OK != blockc_status)
                 printf("\n>>> Error durante el cifrado CTR");
             wait_key();
             break;
         case 5:
-            printf("\n>> Escribe el nombre del archivo con la llave: ");
-            read_string(sizeof(key_filename), key_filename);
-            printf(">> Escribe el nombre del archivo con la S-Box: ");
-            read_string(sizeof(sbox_filename), sbox_filename);
             printf(">> Escribe el nombre del archivo cifrado: ");
             read_string(sizeof(input_filename), input_filename);
             printf(">> Escribe el nombre del archivo de salida: ");
             read_string(sizeof(output_filename), output_filename);
 
-            blockc_status = ctr_decrypt_file(sbox_filename, key_filename,
-                                             input_filename, output_filename);
+            blockc_status = ctr_decrypt_file(input_filename, output_filename);
             if (BLOCKC_OK != blockc_status)
                 printf("\n>>> Error durante el descifrado CTR");
             wait_key();
@@ -493,10 +483,20 @@ static void key_expansion(unsigned short K, unsigned char sbox[], unsigned short
  * - BLOCKC_KEY_OPEN_FILE_ERROR si hubo un error al cargar la llave.
  * - BLOCKC_KEY_READ_ERROR si hubo un error al leer la llave.
  */
-static unsigned short tbc_encrypt(unsigned short block, unsigned short key, unsigned char sbox[], unsigned char P[])
+static unsigned short tbc_encrypt(unsigned short block, unsigned short key)
 {
     unsigned short sub_keys[3];
     unsigned char L, R;
+    unsigned char sbox[256], P[8];
+    BlockCStatus blockc_status;
+
+    blockc_status = load_sbox("sbox_8bits.txt", sbox);
+    if (BLOCKC_OK != blockc_status)
+        return blockc_status;
+
+    blockc_status = load_permutation("permutation.txt", P);
+    if (BLOCKC_OK != blockc_status)
+        return blockc_status;
 
     key_expansion(key, sbox, sub_keys);
 
@@ -572,17 +572,17 @@ static unsigned char apply_permutation(unsigned char P[8], unsigned char s)
     return result;
 }
 
-BlockCStatus ctr_encrypt_file(char sbox_filename[], char key_filename[], char input_filename[], char output_filename[])
+BlockCStatus ctr_encrypt_file(char input_filename[], char output_filename[])
 {
     unsigned short K;
     unsigned char sbox[256], P[8];
     BlockCStatus blockc_status;
 
-    blockc_status = load_key(key_filename, &K);
+    blockc_status = load_key("key.txt", &K);
     if (BLOCKC_OK != blockc_status)
         return blockc_status;
 
-    blockc_status = load_sbox(sbox_filename, sbox);
+    blockc_status = load_sbox("sbox_8bits.txt", sbox);
     if (BLOCKC_OK != blockc_status)
         return blockc_status;
 
@@ -636,7 +636,7 @@ BlockCStatus ctr_encrypt_file(char sbox_filename[], char key_filename[], char in
     {
         unsigned short cont = (C0 << 8) | C1;
 
-        unsigned short X = tbc_encrypt(cont, K, sbox, P);
+        unsigned short X = tbc_encrypt(cont, K);
 
         unsigned short M_block = 0;
         M_block = plaintext[i] << 8;
@@ -665,17 +665,17 @@ BlockCStatus ctr_encrypt_file(char sbox_filename[], char key_filename[], char in
     return BLOCKC_OK;
 }
 
-BlockCStatus ctr_decrypt_file(char sbox_filename[], char key_filename[], char input_filename[], char output_filename[])
+BlockCStatus ctr_decrypt_file(char input_filename[], char output_filename[])
 {
     unsigned short K;
     unsigned char sbox[256], P[8];
     BlockCStatus blockc_status;
 
-    blockc_status = load_key(key_filename, &K);
+    blockc_status = load_key("key.txt", &K);
     if (BLOCKC_OK != blockc_status)
         return blockc_status;
 
-    blockc_status = load_sbox(sbox_filename, sbox);
+    blockc_status = load_sbox("sbox_8bits.txt", sbox);
     if (BLOCKC_OK != blockc_status)
         return blockc_status;
 
@@ -725,7 +725,7 @@ BlockCStatus ctr_decrypt_file(char sbox_filename[], char key_filename[], char in
     {
         unsigned short cont = (C0 << 8) | C1;
 
-        unsigned short X = tbc_encrypt(cont, K, sbox, P);
+        unsigned short X = tbc_encrypt(cont, K);
 
         unsigned short C_block = (ciphertext[i] << 8) | ciphertext[i + 1];
 
