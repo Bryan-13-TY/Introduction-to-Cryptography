@@ -10,8 +10,6 @@ typedef enum
     BLOCKC_SBOX_MEMORY_ERROR = -2,
     BLOCKC_KEY_OPEN_FILE_ERROR = -3,
     BLOCKC_KEY_READ_ERROR = -4,
-    BLOCKC_FILE_ERROR = -5,
-    BLOCKC_MEMORY_ERROR = -6,
 } BlockCStatus;
 
 static void wait_key();
@@ -23,7 +21,7 @@ static BlockCStatus store_permutation(int size, unsigned char array[size], char 
 BlockCStatus sbox_generator();
 BlockCStatus permutation_generator();
 BlockCStatus load_permutation(char filename[], unsigned char P[8]);
-// BlockCStatus load_inverse_permutation(char filename[], unsigned char P_inv[8]);
+BlockCStatus load_inverse_permutation(char filename[], unsigned char P_inv[8]);
 static unsigned char apply_permutation(unsigned char P[8], unsigned char s);
 BlockCStatus secret_key_generator();
 static void read_string(int size, char string[size]);
@@ -36,18 +34,16 @@ static unsigned short shuffle_bytes(unsigned char high_byte, unsigned char low_b
 static unsigned char get_4MSB(unsigned char c);
 static unsigned char get_4LSB(unsigned char c);
 static unsigned char swap_nibbles(unsigned char byte);
-static void key_expansion(unsigned short K, unsigned char sbox[], unsigned short sub_keys[]);
+static void key_expansion(unsigned short K, unsigned char sbox[], unsigned short sub_keys[], int c);
+BlockCStatus encrypt(char sbox_filename[], char key_filename[], char block[], unsigned short sub_keys[]);
 static BlockCStatus load_inverse_sbox(char sbox_filename[], unsigned char inverse_sbox[]);
 static void unformat_block(unsigned short value, char block[]);
-// BlockCStatus decrypt(char sbox_filename[], char key_filename[], unsigned short block, unsigned short sub_keys[]);
-BlockCStatus ctr_encrypt_file(char sbox_filename[], char key_filename[], char input_filename[], char output_filename[]);
-BlockCStatus ctr_decrypt_file(char sbox_filename[], char key_filename[], char input_filename[], char output_filename[]);
-static unsigned short tbc_encrypt(unsigned short block, unsigned short key, unsigned char sbox[], unsigned char P[]);
+BlockCStatus decrypt(char sbox_filename[], char key_filename[], unsigned short block, unsigned short sub_keys[]);
 
 int main(int argc, char const *argv[])
 {
     int option = 0;
-    char key_filename[100], sbox_filename[100], input_filename[100], output_filename[100];
+    char key_filename[100], sbox_filename[100], block[10];
     unsigned short sub_keys[3], C;
     BlockCStatus blockc_status;
 
@@ -57,7 +53,7 @@ int main(int argc, char const *argv[])
     {
         printf("\033[2J\033[H");
         printf("/*------------------.\n");
-        printf("| CTR Mode |\n");
+        printf("| Tiny Block Cipher |\n");
         printf("`------------------*/\n\n");
         printf(">> Elije una de las opciones:\n\n");
         printf("1.- Generar una S-Box de 8 bits\n");
@@ -103,31 +99,39 @@ int main(int argc, char const *argv[])
             read_string(sizeof(key_filename), key_filename);
             printf(">> Escribe el nombre del archivo con la S-Box: ");
             read_string(sizeof(sbox_filename), sbox_filename);
-            printf(">> Escribe el nombre del archivo de entrada: ");
-            read_string(sizeof(input_filename), input_filename);
-            printf(">> Escribe el nombre del archivo de salida: ");
-            read_string(sizeof(output_filename), output_filename);
-
-            blockc_status = ctr_encrypt_file(sbox_filename, key_filename,
-                                             input_filename, output_filename);
-            if (BLOCKC_OK != blockc_status)
-                printf("\n>>> Error durante el cifrado CTR");
+            printf(">> Escribe el bloque a cifrar (2 caracteres): ");
+            read_string(sizeof(block), block);
+            if (strlen(block) == 2)
+            {
+                blockc_status = encrypt(sbox_filename, key_filename, block, sub_keys);
+                if (BLOCKC_KEY_OPEN_FILE_ERROR == blockc_status)
+                    printf("\n>>> Hubo un error al cargar la llave");
+                if (BLOCKC_SBOX_OPEN_FILE_ERROR == blockc_status)
+                    printf("\n>>> Hubo un error al cargar la S-Box");
+                if (BLOCKC_KEY_READ_ERROR == blockc_status)
+                    printf("\n>>> Hubo un erro al leer la llave");
+            }
+            else
+            {
+                printf("\n>> El tamano del bloque no es correcto");
+            }
             wait_key();
             break;
         case 5:
-            printf("\n>> Escribe el nombre del archivo con la llave: ");
+            printf("\n>> Nombre del la llave (.txt): ");
             read_string(sizeof(key_filename), key_filename);
-            printf(">> Escribe el nombre del archivo con la S-Box: ");
+            printf(">> Nombre de la S-Box (.txt): ");
             read_string(sizeof(sbox_filename), sbox_filename);
-            printf(">> Escribe el nombre del archivo cifrado: ");
-            read_string(sizeof(input_filename), input_filename);
-            printf(">> Escribe el nombre del archivo de salida: ");
-            read_string(sizeof(output_filename), output_filename);
-
-            blockc_status = ctr_decrypt_file(sbox_filename, key_filename,
-                                             input_filename, output_filename);
-            if (BLOCKC_OK != blockc_status)
-                printf("\n>>> Error durante el descifrado CTR");
+            printf(">> Escribe el hexadecimal a descifrar: ");
+            scanf("%X", &C);
+            blockc_status = decrypt(sbox_filename, key_filename, C, sub_keys);
+            if (BLOCKC_KEY_OPEN_FILE_ERROR == blockc_status)
+                printf("\n>>> Hubo un error al cargar la llave");
+            if (BLOCKC_SBOX_OPEN_FILE_ERROR == blockc_status)
+                printf("\n>>> Hubo un error al cargar la S-Box o la S-Box inversa");
+            if (BLOCKC_KEY_READ_ERROR == blockc_status)
+                printf("\n>>> Hubo un erro al leer la llave");
+            wait_key();
             break;
         case 6:
             printf("\n>> Gracias por probar el programa");
@@ -463,7 +467,7 @@ static unsigned char swap_nibbles(unsigned char byte)
  * @param sbox S-Box de 8 bits.
  * @param sub_keys Arreglo donde se guardan las sub-llaves.
  */
-static void key_expansion(unsigned short K, unsigned char sbox[], unsigned short sub_keys[])
+static void key_expansion(unsigned short K, unsigned char sbox[], unsigned short sub_keys[], int c)
 {
     unsigned char w0 = get_8MSB(K);
     unsigned char w1 = get_8LSB(K);
@@ -476,10 +480,26 @@ static void key_expansion(unsigned short K, unsigned char sbox[], unsigned short
     sub_keys[0] = shuffle_bytes(w0, w1);
     sub_keys[1] = shuffle_bytes(w2, w3);
     sub_keys[2] = shuffle_bytes(w4, w5);
+
+    printf("\n>> Las sub-llaves son: \n\n");
+    if (c == 0)
+    {
+        for (int i = 0; i < 3; i++)
+        {
+            printf("K%d: %04X\n", i, sub_keys[i]);
+        }
+    }
+    else
+    {
+        for (int i = 3; i > 0; i--)
+        {
+            printf("K%d: %04X\n", i, sub_keys[i]);
+        }
+    }
 }
 
 /**
- * @brief
+ * @brief Cifra un bloque de 2 bytes.
  *
  * @param sbox_filename Archivo con la S-Box.
  * @param key_filename Archivo con la llave secreta.
@@ -492,28 +512,155 @@ static void key_expansion(unsigned short K, unsigned char sbox[], unsigned short
  * - BLOCKC_KEY_OPEN_FILE_ERROR si hubo un error al cargar la llave.
  * - BLOCKC_KEY_READ_ERROR si hubo un error al leer la llave.
  */
-static unsigned short tbc_encrypt(unsigned short block, unsigned short key, unsigned char sbox[], unsigned char P[])
+BlockCStatus encrypt(char sbox_filename[], char key_filename[], char block[], unsigned short sub_keys[])
 {
-    unsigned short sub_keys[3];
-    unsigned char L, R;
+    unsigned short K;
+    unsigned char sbox[256], L, R, P[8];
+    unsigned short M = format_block(block);
+    char string[3];
+    BlockCStatus blockc_status;
 
-    key_expansion(key, sbox, sub_keys);
+    // Cargar la llave y la S-Box
+    blockc_status = load_key(key_filename, &K);
+    if (BLOCKC_OK != blockc_status)
+        return blockc_status;
 
-    unsigned short M = block;
+    blockc_status = load_sbox(sbox_filename, sbox);
+    if (BLOCKC_OK != blockc_status)
+        return blockc_status;
 
+    blockc_status = load_permutation("permutation.txt", P);
+    if (BLOCKC_OK != blockc_status)
+        return blockc_status;
+
+    // Expandir la llave
+    key_expansion(K, sbox, sub_keys, 0);
+
+    // Cifrado
     for (int i = 0; i < 3; i++)
     {
+        printf("\nIteracion %d:\n", i + 1);
+        printf("\nM <- %04X ^ %04X", M, sub_keys[i]);
         M = M ^ sub_keys[i];
-        L = (M >> 8) & 0xFF;
-        R = M & 0xFF;
+        printf(": %04X", M);
+
+        L = get_8MSB(M);
+        R = get_8LSB(M);
         L = sbox[L];
         R = sbox[R];
         L = apply_permutation(P, L);
         R = apply_permutation(P, R);
-        M = (L << 8) | R;
+
+        printf("\nM <- S(%04X)", M);
+        M = shuffle_bytes(L, R);
+        printf(": %04X\n", M);
     }
 
-    return M;
+    unformat_block(M, string);
+
+    printf("\n>> El bloque cifrado es: %04X -> (%c%c)", M, string[0], string[1]);
+
+    return BLOCKC_OK;
+}
+
+/**
+ * @brief Carga la S-Box inversa desde un archivo de texto.
+ *
+ * @param sbox_filename Nombre del archivo.
+ * @param inverse_sbox Arreglo en donde se guarga la S-Box inversa.
+ *
+ * @return
+ * - BLOCKC_OK si se cargo correctamente.
+ * - BLOCKC_SBOX_OPEN_FILE_ERROR si hubo un error al abrir el archivo.
+ */
+static BlockCStatus load_inverse_sbox(char sbox_filename[], unsigned char sbox_inversa[])
+{
+    FILE *fp = fopen(sbox_filename, "r");
+    if (!fp)
+        return BLOCKC_SBOX_OPEN_FILE_ERROR;
+
+    int size = 1 << 8;
+    for (int i = 0; i < size; i++)
+    {
+        sbox_inversa[i] = 0;
+    }
+
+    int input, output;
+    while (fscanf(fp, " %X -> %X", &input, &output) == 2)
+    {
+        if (input >= 0 && input < 256 && output >= 0 && output < 256)
+        {
+            sbox_inversa[output] = (unsigned char)input;
+        }
+    }
+
+    fclose(fp);
+    return BLOCKC_OK;
+}
+
+/**
+ * @brief Descifra un bloque de 2 bytes.
+ *
+ * @param sbox_filename Archivo con la S-Box.
+ * @param key_filename Archivo con la llave secreta.
+ * @param block Bloque a descifrar.
+ * @param sub_keys Arreglo con las sub-llaves.
+ *
+ * @return
+ * - BLOCKC_OK si el cifrado se hizo correctamente.
+ * - BLOCKC_SBOX_OPEN_FILE_ERROR si hubo un error al cargar la S-Box o la S-Box inversa.
+ * - BLOCKC_KEY_OPEN_FILE_ERROR si hubo un error al cargar la llave.
+ * - BLOCKC_KEY_READ_ERROR si hubo un error al leer la llave.
+ */
+BlockCStatus decrypt(char sbox_filename[], char key_filename[], unsigned short block, unsigned short sub_keys[])
+{
+    unsigned short K;
+    unsigned char sbox[256], sbox_inversa[256], A, B, P_inv[8];
+    // unsigned short C = format_block(block);
+    char string[3];
+    BlockCStatus blockc_status;
+
+    // Cargar la llave y la S-Box inversa
+    blockc_status = load_key(key_filename, &K);
+    if (BLOCKC_OK != blockc_status)
+        return blockc_status;
+
+    blockc_status = load_sbox(sbox_filename, sbox);
+    if (BLOCKC_OK != blockc_status)
+        return blockc_status;
+    blockc_status = load_inverse_sbox(sbox_filename, sbox_inversa);
+    if (BLOCKC_OK != blockc_status)
+        return blockc_status;
+    blockc_status = load_inverse_permutation("permutation.txt", P_inv);
+    if (BLOCKC_OK != blockc_status)
+        return blockc_status;
+
+    key_expansion(K, sbox, sub_keys, 1);
+
+    printf("\n Caracteres cifrados: %04X (%c%c)\n", block, (char)(block >> 8), (char)(block & 0xFF));
+
+    for (int i = 2; i >= 0; i--)
+    {
+        printf("\nIteracion %d:\n", 3 - i);
+        A = apply_permutation(P_inv, get_8MSB(block));
+        B = apply_permutation(P_inv, get_8LSB(block));
+        A = sbox_inversa[A];
+        B = sbox_inversa[B];
+
+        printf("\nC <- SBOX INVERSA( %04X )", block);
+        block = shuffle_bytes(A, B);
+        printf(". Cambio en la sbox inversa: %04X", block);
+
+        printf("\nC <- %X XOR %X", block, sub_keys[i]);
+        block = block ^ sub_keys[i];
+        printf(": %04X\n", block);
+    }
+
+    unformat_block(block, string);
+
+    printf("\n>> El bloque descifrado es: %04X -> %c%c", block, string[0], string[1]);
+
+    return BLOCKC_OK;
 }
 
 BlockCStatus permutation_generator()
@@ -560,6 +707,24 @@ BlockCStatus load_permutation(char filename[], unsigned char P[8])
     return BLOCKC_OK;
 }
 
+BlockCStatus load_inverse_permutation(char filename[], unsigned char P_inv[8])
+{
+    FILE *fp = fopen(filename, "r");
+    if (!fp)
+        return BLOCKC_SBOX_OPEN_FILE_ERROR;
+
+    int input, output = 0;
+    while (output < 8 && fscanf(fp, "%d", &input) == 1)
+    {
+        // En la posición que diga el archivo, guardamos 'i' (la posición actual)
+        P_inv[input - 1] = (unsigned char)output;
+        output++;
+    }
+
+    fclose(fp);
+    return BLOCKC_OK;
+}
+
 static unsigned char apply_permutation(unsigned char P[8], unsigned char s)
 {
     unsigned char result = 0;
@@ -569,177 +734,4 @@ static unsigned char apply_permutation(unsigned char P[8], unsigned char s)
         result |= (bit << (7 - i));
     }
     return result;
-}
-
-BlockCStatus ctr_encrypt_file(char sbox_filename[], char key_filename[], char input_filename[], char output_filename[])
-{
-    unsigned short K;
-    unsigned char sbox[256], P[8];
-    BlockCStatus blockc_status;
-
-    blockc_status = load_key(key_filename, &K);
-    if (BLOCKC_OK != blockc_status)
-        return blockc_status;
-
-    blockc_status = load_sbox(sbox_filename, sbox);
-    if (BLOCKC_OK != blockc_status)
-        return blockc_status;
-
-    blockc_status = load_permutation("permutation.txt", P);
-    if (BLOCKC_OK != blockc_status)
-        return blockc_status;
-
-    FILE *input_fp = fopen(input_filename, "rb");
-    if (!input_fp)
-        return BLOCKC_FILE_ERROR;
-
-    // Obtenemos el tamaño del archivo
-    fseek(input_fp, 0, SEEK_END);
-    long file_size = ftell(input_fp);
-    fseek(input_fp, 0, SEEK_SET);
-
-    unsigned char *plaintext = malloc(file_size);
-    if (!plaintext)
-    {
-        fclose(input_fp);
-        return BLOCKC_MEMORY_ERROR;
-    }
-
-    size_t bytes_read = fread(plaintext, 1, file_size, input_fp);
-    fclose(input_fp);
-
-    FILE *output_fp = fopen(output_filename, "wb");
-    if (!output_fp)
-    {
-        free(plaintext);
-        return BLOCKC_FILE_ERROR;
-    }
-
-    unsigned char C0 = rand() % 256;
-    unsigned char C1 = 0;
-
-    fprintf(output_fp, "%02X", C0);
-
-    unsigned char *ciphertext = malloc(bytes_read + 1);
-    if (!ciphertext)
-    {
-        free(plaintext);
-        fclose(output_fp);
-        return BLOCKC_MEMORY_ERROR;
-    }
-
-    int ciphertext_len = 0;
-    printf("\n>> C0 usado: %02X", C0);
-
-    for (long i = 0; i < bytes_read; i += 2)
-    {
-        unsigned short cont = (C0 << 8) | C1;
-
-        unsigned short X = tbc_encrypt(cont, K, sbox, P);
-
-        unsigned short M_block = 0;
-        M_block = plaintext[i] << 8;
-        if (i + 1 < bytes_read)
-            M_block |= plaintext[i + 1];
-
-        unsigned short Y = M_block ^ X;
-        fprintf(output_fp, "%04X", Y);
-        ciphertext_len += 2;
-
-        C1 = (C1 + 1) % 256;
-        if (C1 == 0)
-            C0 = (C0 + 1) % 256;
-
-        printf("\n>> Bloque %d: Counter = %04X, TBC = %04X, Cipher Block = %04X", i / 2, cont, X, Y);
-    }
-
-    fclose(output_fp);
-    free(plaintext);
-    free(ciphertext);
-
-    printf("\n>> Archivo cifrado guardado en: %s", output_filename);
-
-    return BLOCKC_OK;
-}
-
-BlockCStatus ctr_decrypt_file(char sbox_filename[], char key_filename[], char input_filename[], char output_filename[])
-{
-    unsigned short K;
-    unsigned char sbox[256], P[8];
-    BlockCStatus blockc_status;
-
-    blockc_status = load_key(key_filename, &K);
-    if (BLOCKC_OK != blockc_status)
-        return blockc_status;
-
-    blockc_status = load_sbox(sbox_filename, sbox);
-    if (BLOCKC_OK != blockc_status)
-        return blockc_status;
-
-    blockc_status = load_permutation("permutation.txt", P);
-    if (BLOCKC_OK != blockc_status)
-        return blockc_status;
-
-    FILE *input_fp = fopen(input_filename, "r");
-    if (!input_fp)
-        return BLOCKC_FILE_ERROR;
-
-    unsigned int temp;
-    if (fscanf(input_fp, "%02X", &temp) != 1)
-    {
-        fclose(input_fp);
-        return BLOCKC_FILE_ERROR;
-    }
-    unsigned char C0 = (unsigned char)temp;
-    unsigned char C1 = 0;
-    unsigned char *ciphertext = malloc(65536);
-    if (!ciphertext)
-    {
-        fclose(input_fp);
-        return BLOCKC_MEMORY_ERROR;
-    }
-
-    int ciphertext_len = 0;
-    unsigned short block;
-    while (fscanf(input_fp, "%04hX", &block) == 1)
-    {
-        ciphertext[ciphertext_len++] = (block >> 8) & 0xFF;
-        ciphertext[ciphertext_len++] = block & 0xFF;
-    }
-    fclose(input_fp);
-
-    FILE *output_fp = fopen(output_filename, "wb");
-    if (!output_fp)
-    {
-        free(ciphertext);
-        return BLOCKC_FILE_ERROR;
-    }
-
-    printf("\n>> C0 usado: %02X", C0);
-    for (int i = 0; i < ciphertext_len; i += 2)
-    {
-        unsigned short cont = (C0 << 8) | C1;
-
-        unsigned short X = tbc_encrypt(cont, K, sbox, P);
-
-        unsigned short C_block = (ciphertext[i] << 8) | ciphertext[i + 1];
-
-        unsigned short M = C_block ^ X;
-
-        fputc((M >> 8) & 0xFF, output_fp);
-        fputc(M & 0xFF, output_fp);
-
-        C1 = (C1 + 1) % 256;
-        if (C1 == 0)
-            C0 = (C0 + 1) % 256;
-
-        printf("\n>> Bloque %04d: Counter = %04X, TBC = %04X, Text block = %04X", i / 2, cont, X, M);
-    }
-
-    fclose(output_fp);
-    free(ciphertext);
-    // printf("\n>> Texto descifrado es: %s", M);
-    printf("\n>> Archivo descifrado guardado en: %s", output_filename);
-
-    return BLOCKC_OK;
 }

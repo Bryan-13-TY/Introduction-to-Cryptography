@@ -196,7 +196,7 @@ static void key_expansion(unsigned short K, unsigned char sbox[], unsigned short
  * @param size Número de entradas de la S-Box.
  * @param array Arreglo para la S-Box.
  */
-static void fill_array(int size, unsigned char array[size]) {
+static void fill_array(int size, unsigned char array[]) {
     for (int i = 0; i < size; i++) {
         array[i] = i;
     }
@@ -208,7 +208,7 @@ static void fill_array(int size, unsigned char array[size]) {
  * @param size Número de entradas de la S-Box.
  * @param array Arreglo para la S-Box.
  */
-static void shuffle_array(int size, unsigned char array[size]) {
+static void shuffle_array(int size, unsigned char array[]) {
     for (int i = size - 1; i > 0; i--) {
         int j = rand() % (i + 1);
         
@@ -240,7 +240,7 @@ static void generate_sbox_path(char name[], int max_size, int sbox_size) {
  * - CTR_OK si se guardo correctamente.
  * - CTR_SBOX_GENERATION_ERROR si hubo un error al generar y guardar la S-Box.
  */
-static CTRStatus store_sbox(int size, unsigned char array[size], char textfile_name[]) {
+static CTRStatus store_sbox(int size, unsigned char array[], char textfile_name[]) {
     FILE *fp = fopen(textfile_name, "w");
     if (!fp) return CTR_SBOX_GENERATION_ERROR;
 

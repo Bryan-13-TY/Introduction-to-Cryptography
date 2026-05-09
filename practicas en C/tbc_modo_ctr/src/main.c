@@ -94,4 +94,3 @@ int main(int argc, char const *argv[]) {
     } while(option != 6);
     return 0;
 }
-

@@ -13,7 +13,7 @@ void clean_buffer() {
     while ((c = getchar()) != '\n' && c != EOF);
 }
 
-void read_string(int size, char string[size]) {
+void read_string(int size, char string[]) {
     if (fgets(string, size, stdin)) {
         string[strcspn(string, "\n")] = '\0';
     } else {

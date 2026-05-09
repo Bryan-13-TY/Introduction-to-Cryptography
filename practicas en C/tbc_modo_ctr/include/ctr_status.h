@@ -8,7 +8,6 @@
  * Las funciones para generar una S-Box, P-Box, llave secreta,
  * cifrar y descifrar devuelven uno de estos valores para
  * indicar éxito o el tipo de error ocurrido.
- * 
  */
 typedef enum {
     CTR_OK = 0, /**< Operación exitosa */
@@ -27,7 +26,6 @@ typedef enum {
     CTR_CIPHER_READ_ERROR = -13, /**< Error al leer el ciphertext */
     CTR_COUNTER_READ_ERROR = -14, /**< Error al leer el byte alto del contador del modo CTR */
     CTR_NUM_BLOCKS_READ_ERROR = -15, /**< Error al leer el número de bloques en las que se dividio el plaintext */
-    
 } CTRStatus;
 
 /**
