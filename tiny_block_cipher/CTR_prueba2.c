@@ -430,6 +430,7 @@ BlockCStatus ctr_encrypt_file(char input_filename[])
 
     unsigned char C0 = rand() % 256;
     unsigned char C1 = 0;
+    unsigned int mensaje_len = 0;
 
     fprintf(output_fp, "%02X", C0);
 
@@ -458,6 +459,7 @@ BlockCStatus ctr_encrypt_file(char input_filename[])
 
         unsigned short Y = M_block ^ X;
 
+        mensaje_len += Y;
         fprintf(output_fp, "%04X", Y);
         ciphertext_len += 2;
 
@@ -467,6 +469,8 @@ BlockCStatus ctr_encrypt_file(char input_filename[])
 
         printf("\n>> Bloque %d: Counter = %04X, TBC = %04X, Cipher Block = %04X", (i / 2) + 1, cont, X, Y);
     }
+
+    fprintf(output_fp, "#%08X", mensaje_len);
 
     fclose(output_fp);
     free(plaintext);

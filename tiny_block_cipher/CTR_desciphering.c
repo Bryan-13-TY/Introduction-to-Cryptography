@@ -408,12 +408,32 @@ BlockCStatus ctr_decrypt_file(char output_filename[])
         return BLOCKC_MEMORY_ERROR;
     }
 
+    unsigned int hash_calculado = 0;
+    unsigned int hash_recibido = 0;
     int ciphertext_len = 0;
     unsigned short block;
+
     while (fscanf(input_fp, "%04hX", &block) == 1)
     {
+        hash_calculado += block;
         ciphertext[ciphertext_len++] = (block >> 8) & 0xFF;
         ciphertext[ciphertext_len++] = block & 0xFF;
+    }
+    if (fscanf(input_fp, "#%08X", &hash_recibido) == 1)
+    {
+        if (hash_calculado != hash_recibido)
+        {
+            printf("\nERROR: El archivo ha sido modificado. Hash no coincide.");
+            printf("\nCalculado: %08X | Recibido: %08X", hash_calculado, hash_recibido);
+            fclose(input_fp);
+            free(ciphertext);
+            return BLOCKC_FILE_ERROR; // O un error de integridad
+        }
+        printf("\n>> Integridad verificada correctamente.");
+    }
+    else
+    {
+        printf("\nNo contiene integridad el archivo de cifrado.");
     }
     fclose(input_fp);
 
