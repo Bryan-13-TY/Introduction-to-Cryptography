@@ -315,7 +315,7 @@ static unsigned short tbc_encrypt(unsigned short block, unsigned short key)
     unsigned char sbox[256], P[8];
     BlockCStatus blockc_status;
 
-    blockc_status = load_sbox("sbox_8bits.txt", sbox);
+    blockc_status = load_sbox("EDU_sbox.txt", sbox);
     if (BLOCKC_OK != blockc_status)
         return blockc_status;
 
@@ -369,17 +369,55 @@ static unsigned char apply_permutation(unsigned char P[8], unsigned char s)
     return result;
 }
 
+static const char b64_chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+// Decodifica una cadena Base64 a un array de bytes
+static size_t base64_decode(const char *in, unsigned char *out)
+{
+    size_t in_len = strlen(in);
+    if (in_len % 4 != 0)
+        return 0;
+
+    int b64_inv[256];
+    for (int i = 0; i < 256; i++)
+        b64_inv[i] = -1;
+    for (int i = 0; i < 64; i++)
+        b64_inv[(unsigned char)b64_chars[i]] = i;
+
+    size_t out_len = (in_len / 4) * 3;
+    if (in[in_len - 1] == '=')
+        out_len--;
+    if (in[in_len - 2] == '=')
+        out_len--;
+
+    for (size_t i = 0, j = 0; i < in_len; i += 4, j += 3)
+    {
+        unsigned int v = (b64_inv[(unsigned char)in[i]] << 18) |
+                         (b64_inv[(unsigned char)in[i + 1]] << 12) |
+                         (b64_inv[(unsigned char)in[i + 2]] << 6) |
+                         b64_inv[(unsigned char)in[i + 3]];
+
+        out[j] = (v >> 16) & 0xFF;
+        if (j + 1 < out_len)
+            out[j + 1] = (v >> 8) & 0xFF;
+        if (j + 2 < out_len)
+            out[j + 2] = v & 0xFF;
+    }
+    return out_len;
+}
+
 BlockCStatus ctr_decrypt_file(char output_filename[])
 {
     unsigned short K;
     unsigned char sbox[256], P[8];
     BlockCStatus blockc_status;
+    char cipher_filename[100];
 
     blockc_status = load_key("key.txt", &K);
     if (BLOCKC_OK != blockc_status)
         return blockc_status;
 
-    blockc_status = load_sbox("sbox_8bits.txt", sbox);
+    blockc_status = load_sbox("EDU_sbox.txt", sbox);
     if (BLOCKC_OK != blockc_status)
         return blockc_status;
 
@@ -387,55 +425,55 @@ BlockCStatus ctr_decrypt_file(char output_filename[])
     if (BLOCKC_OK != blockc_status)
         return blockc_status;
 
-    FILE *input_fp = fopen("cifrado.txt", "r");
+    printf(">> Digite el nombre del archivo de encriptacion Base64 a abrir: ");
+    read_string(sizeof(cipher_filename), cipher_filename);
+
+    FILE *input_fp = fopen(cipher_filename, "r");
     if (!input_fp)
         return BLOCKC_FILE_ERROR;
 
-    unsigned int temp;
-    if (fscanf(input_fp, "%02X", &temp) != 1)
+    // Leer la cadena Base64 completa del archivo
+    char *b64_input = malloc(65536 * 2);
+    if (fscanf(input_fp, "%131071s", b64_input) != 1)
     {
         fclose(input_fp);
+        free(b64_input);
         return BLOCKC_FILE_ERROR;
     }
-    unsigned char C0 = (unsigned char)temp;
-    unsigned char C1 = 0;
-    unsigned char *mensaje_completo = malloc(65536);
-    int mensaje_len = 0;
-    unsigned char *ciphertext = malloc(65536);
-    if (!ciphertext)
-    {
-        fclose(input_fp);
-        return BLOCKC_MEMORY_ERROR;
+    fclose(input_fp);
+
+    // Decodificar Base64 a binario real
+    unsigned char *raw_data = malloc(65536);
+    size_t raw_len = base64_decode(b64_input, raw_data);
+    free(b64_input);
+
+    if (raw_len < 1)
+    { // Mínimo debe traer 1 byte que corresponde a C0
+        free(raw_data);
+        return BLOCKC_FILE_ERROR;
     }
 
-    unsigned int hash_calculado = 0;
-    unsigned int hash_recibido = 0;
-    int ciphertext_len = 0;
-    unsigned short block;
+    // Extraer C0 (primer byte)
+    size_t raw_ptr = 0;
+    unsigned char C0 = raw_data[raw_ptr++];
+    unsigned char C1 = 0;
 
-    while (fscanf(input_fp, "%04hX", &block) == 1)
+    // Ahora todo lo restante después de C0 son puros bloques cifrados Y
+    size_t ciphertext_bytes_count = raw_len - 1;
+
+    unsigned char *ciphertext = malloc(ciphertext_bytes_count);
+    int ciphertext_len = 0;
+
+    for (size_t i = 0; i < ciphertext_bytes_count; i += 2)
     {
-        hash_calculado += block;
+        unsigned short block = (raw_data[raw_ptr] << 8) | raw_data[raw_ptr + 1];
+        raw_ptr += 2;
+
         ciphertext[ciphertext_len++] = (block >> 8) & 0xFF;
         ciphertext[ciphertext_len++] = block & 0xFF;
     }
-    if (fscanf(input_fp, "#%08X", &hash_recibido) == 1)
-    {
-        if (hash_calculado != hash_recibido)
-        {
-            printf("\nERROR: El archivo ha sido modificado. Hash no coincide.");
-            printf("\nCalculado: %08X | Recibido: %08X", hash_calculado, hash_recibido);
-            fclose(input_fp);
-            free(ciphertext);
-            return BLOCKC_FILE_ERROR; // O un error de integridad
-        }
-        printf("\n>> Integridad verificada correctamente.");
-    }
-    else
-    {
-        printf("\nNo contiene integridad el archivo de cifrado.");
-    }
-    fclose(input_fp);
+
+    free(raw_data);
 
     FILE *output_fp = fopen(output_filename, "wb");
     if (!output_fp)
@@ -444,15 +482,16 @@ BlockCStatus ctr_decrypt_file(char output_filename[])
         return BLOCKC_FILE_ERROR;
     }
 
+    unsigned char *mensaje_completo = malloc(65536);
+    int mensaje_len = 0;
+
     printf("\n>> C0 usado: %02X", C0);
+    fprintf(output_fp, "C0: %02X\n", C0);
     for (int i = 0; i < ciphertext_len; i += 2)
     {
         unsigned short cont = (C0 << 8) | C1;
-
         unsigned short X = tbc_encrypt(cont, K);
-
         unsigned short C_block = (ciphertext[i] << 8) | ciphertext[i + 1];
-
         unsigned short M = C_block ^ X;
 
         fputc((M >> 8) & 0xFF, output_fp);
@@ -477,5 +516,6 @@ BlockCStatus ctr_decrypt_file(char output_filename[])
     printf("\n>> Texto descifrado: %s\n", mensaje_completo);
     printf("\n>> Archivo descifrado guardado en: %s", output_filename);
 
+    free(mensaje_completo);
     return BLOCKC_OK;
 }

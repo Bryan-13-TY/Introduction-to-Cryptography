@@ -23,7 +23,7 @@ static BlockCStatus store_permutation(int size, unsigned char array[size], char 
 BlockCStatus sbox_generator();
 BlockCStatus permutation_generator();
 BlockCStatus load_permutation(char filename[], unsigned char P[8]);
-// BlockCStatus load_inverse_permutation(char filename[], unsigned char P_inv[8]);
+BlockCStatus load_inverse_permutation(char filename[], unsigned char P_inv[8]);
 static unsigned char apply_permutation(unsigned char P[8], unsigned char s);
 BlockCStatus secret_key_generator();
 static void read_string(int size, char string[size]);

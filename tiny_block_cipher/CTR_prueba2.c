@@ -31,13 +31,13 @@ static unsigned char get_4LSB(unsigned char c);
 static unsigned char swap_nibbles(unsigned char byte);
 static void key_expansion(unsigned short K, unsigned char sbox[], unsigned short sub_keys[]);
 static void unformat_block(unsigned short value, char block[]);
-BlockCStatus ctr_encrypt_file(char input_filename[]);
+BlockCStatus ctr_encrypt_file(char input_filename[], char key[]);
 static unsigned short tbc_encrypt(unsigned short block, unsigned short key);
 
 int main(int argc, char const *argv[])
 {
     int option = 0;
-    char input_filename[100];
+    char input_filename[100], key[100];
     BlockCStatus blockc_status;
 
     srand(time(NULL));
@@ -60,8 +60,10 @@ int main(int argc, char const *argv[])
         case 1:
             printf(">> Escribe el nombre del archivo del mensaje: ");
             read_string(sizeof(input_filename), input_filename);
+            printf(">> Escribe el nombre del archivo de la llave: ");
+            read_string(sizeof(key), key);
 
-            blockc_status = ctr_encrypt_file(input_filename);
+            blockc_status = ctr_encrypt_file(input_filename, key);
             if (BLOCKC_OK != blockc_status)
                 printf("\n>>> Error durante el cifrado CTR");
             wait_key();
@@ -330,7 +332,7 @@ static unsigned short tbc_encrypt(unsigned short block, unsigned short key)
     unsigned char sbox[256], P[8];
     BlockCStatus blockc_status;
 
-    blockc_status = load_sbox("sbox_8bits.txt", sbox);
+    blockc_status = load_sbox("EDU_sbox.txt", sbox);
     if (BLOCKC_OK != blockc_status)
         return blockc_status;
 
@@ -384,17 +386,40 @@ static unsigned char apply_permutation(unsigned char P[8], unsigned char s)
     return result;
 }
 
-BlockCStatus ctr_encrypt_file(char input_filename[])
+static const char b64_chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+// Codifica un array de bytes a una cadena Base64
+static void base64_encode(const unsigned char *in, size_t in_len, char *out)
+{
+    size_t i, j;
+    for (i = 0, j = 0; i < in_len; i += 3, j += 4)
+    {
+        unsigned int v = in[i] << 16;
+        if (i + 1 < in_len)
+            v |= in[i + 1] << 8;
+        if (i + 2 < in_len)
+            v |= in[i + 2];
+
+        out[j] = b64_chars[(v >> 18) & 0x3F];
+        out[j + 1] = b64_chars[(v >> 12) & 0x3F];
+        out[j + 2] = (i + 1 < in_len) ? b64_chars[(v >> 6) & 0x3F] : '=';
+        out[j + 3] = (i + 2 < in_len) ? b64_chars[v & 0x3F] : '=';
+    }
+    out[j] = '\0';
+}
+
+BlockCStatus ctr_encrypt_file(char input_filename[], char key[])
 {
     unsigned short K;
     unsigned char sbox[256], P[8];
     BlockCStatus blockc_status;
+    char cipher_filename[100];
 
-    blockc_status = load_key("key.txt", &K);
+    blockc_status = load_key(key, &K);
     if (BLOCKC_OK != blockc_status)
         return blockc_status;
 
-    blockc_status = load_sbox("sbox_8bits.txt", sbox);
+    blockc_status = load_sbox("EDU_sbox.txt", sbox);
     if (BLOCKC_OK != blockc_status)
         return blockc_status;
 
@@ -406,7 +431,6 @@ BlockCStatus ctr_encrypt_file(char input_filename[])
     if (!input_fp)
         return BLOCKC_FILE_ERROR;
 
-    // Obtenemos el tamaño del archivo
     fseek(input_fp, 0, SEEK_END);
     long file_size = ftell(input_fp);
     fseek(input_fp, 0, SEEK_SET);
@@ -421,7 +445,10 @@ BlockCStatus ctr_encrypt_file(char input_filename[])
     size_t bytes_read = fread(plaintext, 1, file_size, input_fp);
     fclose(input_fp);
 
-    FILE *output_fp = fopen("cifrado.txt", "wb");
+    printf(">> Digite el nombre para guardar el archivo encriptado en Base64: ");
+    read_string(sizeof(cipher_filename), cipher_filename);
+
+    FILE *output_fp = fopen(cipher_filename, "w");
     if (!output_fp)
     {
         free(plaintext);
@@ -430,38 +457,31 @@ BlockCStatus ctr_encrypt_file(char input_filename[])
 
     unsigned char C0 = rand() % 256;
     unsigned char C1 = 0;
-    unsigned int mensaje_len = 0;
 
-    fprintf(output_fp, "%02X", C0);
-
-    unsigned char *ciphertext = malloc(bytes_read + 1);
-    if (!ciphertext)
-    {
-        free(plaintext);
-        fclose(output_fp);
-        return BLOCKC_MEMORY_ERROR;
-    }
-
-    int ciphertext_len = 0;
     printf("\n>> C0 usado: %02X", C0);
+
+    // Buffer binario: 1 byte (C0) + bytes cifrados
+    size_t raw_buffer_max = 1 + bytes_read + 1;
+    unsigned char *raw_ciphertext = malloc(raw_buffer_max);
+    size_t raw_ptr = 0;
+
+    raw_ciphertext[raw_ptr++] = C0;
 
     for (long i = 0; i < bytes_read; i += 2)
     {
         unsigned short cont = (C0 << 8) | C1;
-
         unsigned short X = tbc_encrypt(cont, K);
 
         unsigned short M_block = 0;
         M_block = plaintext[i] << 8;
         if (i + 1 < bytes_read)
             M_block |= plaintext[i + 1];
-        // Si el archivo tiene un número impar de bytes, el último bloque se completa con un byte de valor 0
 
         unsigned short Y = M_block ^ X;
 
-        mensaje_len += Y;
-        fprintf(output_fp, "%04X", Y);
-        ciphertext_len += 2;
+        // 2. Guardamos el bloque cifrado Y (2 bytes) en el buffer
+        raw_ciphertext[raw_ptr++] = (Y >> 8) & 0xFF;
+        raw_ciphertext[raw_ptr++] = Y & 0xFF;
 
         C1 = (C1 + 1) % 256;
         if (C1 == 0)
@@ -470,13 +490,19 @@ BlockCStatus ctr_encrypt_file(char input_filename[])
         printf("\n>> Bloque %d: Counter = %04X, TBC = %04X, Cipher Block = %04X", (i / 2) + 1, cont, X, Y);
     }
 
-    fprintf(output_fp, "#%08X", mensaje_len);
+    // 3. Convertimos el buffer acumulado directamente a Base64 (Sin Hash al final)
+    size_t b64_size = ((raw_ptr + 2) / 3) * 4 + 1;
+    char *b64_output = malloc(b64_size);
+    base64_encode(raw_ciphertext, raw_ptr, b64_output);
+
+    // 4. Escribimos la cadena Base64 en el archivo
+    fprintf(output_fp, "%s", b64_output);
 
     fclose(output_fp);
     free(plaintext);
-    free(ciphertext);
+    free(raw_ciphertext);
+    free(b64_output);
 
-    printf("\n>> Archivo cifrado guardado en: %s", "cifrado.txt");
-
+    printf("\n>> Archivo cifrado y codificado en Base64 guardado en: %s", cipher_filename);
     return BLOCKC_OK;
 }

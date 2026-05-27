@@ -20,6 +20,7 @@ static void fill_array(int size, unsigned char array[size]);
 static void shuffle_array(int size, unsigned char array[size]);
 static void generate_textfile_name(char name[], int max_size, int sbox_size);
 static BlockCStatus store_permutation(int size, unsigned char array[size], char textfile_name[]);
+static void bytes_to_base64(unsigned char byte1, unsigned char byte2, char *output);
 BlockCStatus sbox_generator();
 BlockCStatus permutation_generator();
 BlockCStatus secret_key_generator();
@@ -141,7 +142,7 @@ static void shuffle_array(int size, unsigned char array[size])
  */
 static void generate_textfile_name(char name[], int max_size, int sbox_size)
 {
-    snprintf(name, max_size, "sbox_%dbits.txt", sbox_size);
+    snprintf(name, max_size, "EDU_sbox.txt", sbox_size);
 }
 
 /**
@@ -212,11 +213,19 @@ BlockCStatus secret_key_generator()
 {
     unsigned short K = rand() % 65536;
 
+    char b64_key[5];
+
+    unsigned char byte_alto = (K >> 8) & 0xFF;
+    unsigned char byte_bajo = K & 0xFF;
+
+    // Convertimos los bytes a Base64
+    bytes_to_base64(byte_alto, byte_bajo, b64_key);
+
     FILE *fp = fopen("key.txt", "w");
     if (!fp)
         return BLOCKC_KEY_OPEN_FILE_ERROR;
 
-    fprintf(fp, "%04X\n", K);
+    fprintf(fp, "%s\n", b64_key);
     fclose(fp);
     return BLOCKC_OK;
 }
@@ -247,4 +256,18 @@ BlockCStatus permutation_generator()
 
     fclose(fp);
     return BLOCKC_OK;
+}
+
+static void bytes_to_base64(unsigned char byte1, unsigned char byte2, char *output)
+{
+    const char b64_chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    // Dividimos los 16 bits de los 2 bytes en grupos de 6 bits para Base64
+    // Un unsigned short completo genera 3 grupos de 6 bits (el último se rellena con ceros)
+    unsigned int value = (byte1 << 16) | (byte2 << 8);
+
+    output[0] = b64_chars[(value >> 18) & 0x3F];
+    output[1] = b64_chars[(value >> 12) & 0x3F];
+    output[2] = b64_chars[(value >> 6) & 0x3F];
+    output[3] = '='; // Acolchado (Padding) porque solo procesamos 2 bytes de los 3 que espera Base64 originalmente
+    output[4] = '\0';
 }
