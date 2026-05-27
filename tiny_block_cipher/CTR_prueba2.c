@@ -163,34 +163,46 @@ static BlockCStatus load_sbox(char sbox_filename[], unsigned char sbox[])
     return BLOCKC_OK;
 }
 
-/**
- * @brief Carga la llave desde un archivo de texto.
- *
- * @param key_filename Nombre del archivo.
- * @param K Puntero donde se guarda la llave.
- *
- * @return
- * - BLOCKC_OK si se cargo correctamente.
- * - BLOCKC_KEY_OPEN_FILE_ERROR si hubo un error al abrir al archivo.
- * - BLOCKC_KEY_READ_ERROR si hubo un error al leer la llave.
- */
 static BlockCStatus load_key(char key_filename[], unsigned short *K)
 {
     FILE *fp = fopen(key_filename, "r");
     if (!fp)
         return BLOCKC_KEY_OPEN_FILE_ERROR;
 
-    if (fscanf(fp, "%X", K) != 1)
+    char b64_key[10];
+    if (fscanf(fp, "%9s", b64_key) != 1)
     {
         fclose(fp);
         return BLOCKC_KEY_READ_ERROR;
     }
-
     fclose(fp);
+
+    const char b64_chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    int val[4] = {0, 0, 0, 0};
+
+    for (int i = 0; i < 4; i++)
+    {
+        if (b64_key[i] == '=' || b64_key[i] == '\0')
+        {
+            val[i] = 0;
+        }
+        else
+        {
+            char *pos = strchr(b64_chars, b64_key[i]);
+            if (pos)
+            {
+                val[i] = (int)(pos - b64_chars);
+            }
+        }
+    }
+
+    unsigned char byte_alto = (val[0] << 2) | (val[1] >> 4);
+    unsigned char byte_bajo = ((val[1] & 0x0F) << 4) | (val[2] >> 2);
+
+    *K = (byte_alto << 8) | byte_bajo;
 
     return BLOCKC_OK;
 }
-
 /**
  * @brief Convierte una cadena de 2 caracteres a un bloque de 2 bytes.
  *
@@ -386,26 +398,16 @@ static unsigned char apply_permutation(unsigned char P[8], unsigned char s)
     return result;
 }
 
-static const char b64_chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-
-// Codifica un array de bytes a una cadena Base64
-static void base64_encode(const unsigned char *in, size_t in_len, char *out)
+static void bytes_to_base64(unsigned char byte1, unsigned char byte2, char *output)
 {
-    size_t i, j;
-    for (i = 0, j = 0; i < in_len; i += 3, j += 4)
-    {
-        unsigned int v = in[i] << 16;
-        if (i + 1 < in_len)
-            v |= in[i + 1] << 8;
-        if (i + 2 < in_len)
-            v |= in[i + 2];
+    const char b64_chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    unsigned int value = (byte1 << 16) | (byte2 << 8);
 
-        out[j] = b64_chars[(v >> 18) & 0x3F];
-        out[j + 1] = b64_chars[(v >> 12) & 0x3F];
-        out[j + 2] = (i + 1 < in_len) ? b64_chars[(v >> 6) & 0x3F] : '=';
-        out[j + 3] = (i + 2 < in_len) ? b64_chars[v & 0x3F] : '=';
-    }
-    out[j] = '\0';
+    output[0] = b64_chars[(value >> 18) & 0x3F];
+    output[1] = b64_chars[(value >> 12) & 0x3F];
+    output[2] = b64_chars[(value >> 6) & 0x3F];
+    output[3] = '=';
+    output[4] = '\0';
 }
 
 BlockCStatus ctr_encrypt_file(char input_filename[], char key[])
@@ -445,7 +447,7 @@ BlockCStatus ctr_encrypt_file(char input_filename[], char key[])
     size_t bytes_read = fread(plaintext, 1, file_size, input_fp);
     fclose(input_fp);
 
-    printf(">> Digite el nombre para guardar el archivo encriptado en Base64: ");
+    printf(">> Digite el nombre para guardar el archivo cifrado: ");
     read_string(sizeof(cipher_filename), cipher_filename);
 
     FILE *output_fp = fopen(cipher_filename, "w");
@@ -456,16 +458,16 @@ BlockCStatus ctr_encrypt_file(char input_filename[], char key[])
     }
 
     unsigned char C0 = rand() % 256;
+    unsigned char initial_C0 = C0;
     unsigned char C1 = 0;
+    long num_blocks = (bytes_read + 1) / 2;
 
-    printf("\n>> C0 usado: %02X", C0);
+    printf("\n>> C0 inicial usado: %02X", initial_C0);
 
-    // Buffer binario: 1 byte (C0) + bytes cifrados
-    size_t raw_buffer_max = 1 + bytes_read + 1;
-    unsigned char *raw_ciphertext = malloc(raw_buffer_max);
-    size_t raw_ptr = 0;
+    fprintf(output_fp, "C0: %02X\n", initial_C0);
+    fprintf(output_fp, "N: %ld\n", num_blocks);
 
-    raw_ciphertext[raw_ptr++] = C0;
+    char b64_block[5];
 
     for (long i = 0; i < bytes_read; i += 2)
     {
@@ -479,30 +481,19 @@ BlockCStatus ctr_encrypt_file(char input_filename[], char key[])
 
         unsigned short Y = M_block ^ X;
 
-        // 2. Guardamos el bloque cifrado Y (2 bytes) en el buffer
-        raw_ciphertext[raw_ptr++] = (Y >> 8) & 0xFF;
-        raw_ciphertext[raw_ptr++] = Y & 0xFF;
+        bytes_to_base64((Y >> 8) & 0xFF, Y & 0xFF, b64_block);
+        fprintf(output_fp, "%s\n", b64_block);
 
         C1 = (C1 + 1) % 256;
         if (C1 == 0)
             C0 = (C0 + 1) % 256;
 
-        printf("\n>> Bloque %d: Counter = %04X, TBC = %04X, Cipher Block = %04X", (i / 2) + 1, cont, X, Y);
+        printf("\n>> Bloque %ld: Counter = %04X, TBC = %04X, Cipher (B64) = %s", (i / 2) + 1, cont, X, b64_block);
     }
-
-    // 3. Convertimos el buffer acumulado directamente a Base64 (Sin Hash al final)
-    size_t b64_size = ((raw_ptr + 2) / 3) * 4 + 1;
-    char *b64_output = malloc(b64_size);
-    base64_encode(raw_ciphertext, raw_ptr, b64_output);
-
-    // 4. Escribimos la cadena Base64 en el archivo
-    fprintf(output_fp, "%s", b64_output);
 
     fclose(output_fp);
     free(plaintext);
-    free(raw_ciphertext);
-    free(b64_output);
 
-    printf("\n>> Archivo cifrado y codificado en Base64 guardado en: %s", cipher_filename);
+    printf("\n\n>> Archivo cifrado guardado en: %s", cipher_filename);
     return BLOCKC_OK;
 }
