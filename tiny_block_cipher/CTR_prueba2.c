@@ -447,7 +447,7 @@ BlockCStatus ctr_encrypt_file(char input_filename[], char key[])
     size_t bytes_read = fread(plaintext, 1, file_size, input_fp);
     fclose(input_fp);
 
-    printf(">> Digite el nombre para guardar el archivo cifrado: ");
+    printf("*Digite el nombre para guardar el archivo cifrado: ");
     read_string(sizeof(cipher_filename), cipher_filename);
 
     FILE *output_fp = fopen(cipher_filename, "w");

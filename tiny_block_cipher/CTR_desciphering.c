@@ -418,7 +418,7 @@ BlockCStatus ctr_decrypt_file(char output_filename[])
     if (BLOCKC_OK != blockc_status)
         return blockc_status;
 
-    printf(">> Digite el nombre del archivo cifrado a abrir: ");
+    printf("*Digite el nombre del archivo cifrado a abrir: ");
     read_string(sizeof(cipher_filename), cipher_filename);
 
     FILE *input_fp = fopen(cipher_filename, "r");
@@ -477,6 +477,7 @@ BlockCStatus ctr_decrypt_file(char output_filename[])
         unformat_block(M, caracteres);
         mensaje_completo[mensaje_len++] = caracteres[0];
         mensaje_completo[mensaje_len++] = caracteres[1];
+        printf("\n>> Bloque %ld: Counter = %04X, Cipher = %s, Mblock = %04X", (i / 2) + 1, cont, b64_block, M);
     }
 
     mensaje_completo[mensaje_len] = '\0';
