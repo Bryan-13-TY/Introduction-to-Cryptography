@@ -399,6 +399,23 @@ static void base64_to_bytes(const char *b64_str, unsigned char *byte_alto, unsig
     *byte_bajo = ((val[1] & 0x0F) << 4) | (val[2] >> 2);
 }
 
+// Convierte 4 caracteres Base64 de regreso a 1 byte (C0)
+static unsigned char base64_to_byte(const char *b64_str)
+{
+    const char b64_chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    int val0 = 0, val1 = 0;
+
+    char *pos = strchr(b64_chars, b64_str[0]);
+    if (pos)
+        val0 = (int)(pos - b64_chars);
+
+    pos = strchr(b64_chars, b64_str[1]);
+    if (pos)
+        val1 = (int)(pos - b64_chars);
+
+    return (unsigned char)((val0 << 2) | (val1 >> 4));
+}
+
 BlockCStatus ctr_decrypt_file(char output_filename[])
 {
     unsigned short K;
@@ -425,16 +442,26 @@ BlockCStatus ctr_decrypt_file(char output_filename[])
     if (!input_fp)
         return BLOCKC_FILE_ERROR;
 
-    unsigned int temp_C0;
+    /* unsigned int temp_C0;
+     int N;
+
+     if (fscanf(input_fp, " C0: %X", &temp_C0) != 1 || fscanf(input_fp, " N: %d", &N) != 1)
+     {
+         fclose(input_fp);
+         return BLOCKC_FILE_ERROR;
+     }
+     */
+
+    char b64_c0[5];
     int N;
 
-    if (fscanf(input_fp, " C0: %X", &temp_C0) != 1 || fscanf(input_fp, " N: %d", &N) != 1)
+    if (fscanf(input_fp, " C0: %4s", b64_c0) != 1 || fscanf(input_fp, " N: %d", &N) != 1)
     {
         fclose(input_fp);
         return BLOCKC_FILE_ERROR;
     }
 
-    unsigned char C0 = (unsigned char)temp_C0;
+    unsigned char C0 = base64_to_byte(b64_c0);
     unsigned char C1 = 0;
     unsigned short init0 = (C0 << 8) | C1;
 

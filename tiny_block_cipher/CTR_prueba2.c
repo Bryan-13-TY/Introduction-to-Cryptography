@@ -464,7 +464,9 @@ BlockCStatus ctr_encrypt_file(char input_filename[], char key[])
 
     printf("\n>> C0 inicial usado: %02X", initial_C0);
 
-    fprintf(output_fp, "C0: %02X\n", initial_C0);
+    char b64_C0[5];
+    bytes_to_base64(initial_C0, 0, b64_C0);
+    fprintf(output_fp, "C0: %s\n", b64_C0);
     fprintf(output_fp, "N: %ld\n", num_blocks);
 
     char b64_block[5];
