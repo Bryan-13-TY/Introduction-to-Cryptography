@@ -382,38 +382,33 @@ static unsigned char apply_permutation(unsigned char P[8], unsigned char s)
     return result;
 }
 
-static void base64_to_bytes(const char *b64_str, unsigned char *byte_alto, unsigned char *byte_bajo)
+static const char base64_table[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+static unsigned char base64_value(char c)
 {
-    const char b64_chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    int val[3] = {0, 0, 0};
-
-    // Solo necesitamos decodificar los 3 primeros caracteres (el 4to es el padding '=')
-    for (int i = 0; i < 3; i++)
-    {
-        char *pos = strchr(b64_chars, b64_str[i]);
-        if (pos)
-            val[i] = (int)(pos - b64_chars);
-    }
-
-    *byte_alto = (val[0] << 2) | (val[1] >> 4);
-    *byte_bajo = ((val[1] & 0x0F) << 4) | (val[2] >> 2);
+    char *ptr;
+    ptr = strchr(base64_table, c);
+    if (!ptr)
+        return 0;
+    return ptr - base64_table;
 }
 
-// Convierte 4 caracteres Base64 de regreso a 1 byte (C0)
-static unsigned char base64_to_byte(const char *b64_str)
+static unsigned short decode_base64_block(char b64_block[])
 {
-    const char b64_chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    int val0 = 0, val1 = 0;
+    unsigned char b0;
+    unsigned char b1;
+    unsigned char b2;
+    unsigned int triple;
+    unsigned short block;
 
-    char *pos = strchr(b64_chars, b64_str[0]);
-    if (pos)
-        val0 = (int)(pos - b64_chars);
+    b0 = base64_value(b64_block[0]);
+    b1 = base64_value(b64_block[1]);
+    b2 = base64_value(b64_block[2]);
 
-    pos = strchr(b64_chars, b64_str[1]);
-    if (pos)
-        val1 = (int)(pos - b64_chars);
+    triple = (b0 << 18) | (b1 << 12) | (b2 << 6);
+    block = ((triple >> 16) & 0xFF) << 8 | ((triple >> 8) & 0xFF);
 
-    return (unsigned char)((val0 << 2) | (val1 >> 4));
+    return block;
 }
 
 BlockCStatus ctr_decrypt_file(char output_filename[])
@@ -435,22 +430,12 @@ BlockCStatus ctr_decrypt_file(char output_filename[])
     if (BLOCKC_OK != blockc_status)
         return blockc_status;
 
-    printf("*Digite el nombre del archivo cifrado a abrir: ");
+    printf(">> Digite el nombre del archivo cifrado a abrir: ");
     read_string(sizeof(cipher_filename), cipher_filename);
 
     FILE *input_fp = fopen(cipher_filename, "r");
     if (!input_fp)
         return BLOCKC_FILE_ERROR;
-
-    /* unsigned int temp_C0;
-     int N;
-
-     if (fscanf(input_fp, " C0: %X", &temp_C0) != 1 || fscanf(input_fp, " N: %d", &N) != 1)
-     {
-         fclose(input_fp);
-         return BLOCKC_FILE_ERROR;
-     }
-     */
 
     char b64_c0[5];
     int N;
@@ -461,9 +446,10 @@ BlockCStatus ctr_decrypt_file(char output_filename[])
         return BLOCKC_FILE_ERROR;
     }
 
-    unsigned char C0 = base64_to_byte(b64_c0);
+    unsigned short decoded_c0 = decode_base64_block(b64_c0);
+    unsigned char C0 = (unsigned char)(decoded_c0 & 0xFF);
     unsigned char C1 = 0;
-    unsigned short init0 = (C0 << 8) | C1;
+    unsigned short recovered_counter = (C0 << 8) | C1;
 
     FILE *output_fp = fopen(output_filename, "wb");
     if (!output_fp)
@@ -475,44 +461,39 @@ BlockCStatus ctr_decrypt_file(char output_filename[])
     unsigned char *mensaje_completo = malloc(65536);
     int mensaje_len = 0;
     char b64_block[5];
-    unsigned char byte_alto, byte_bajo;
 
-    fprintf(output_fp, "C0: %02X\n", C0);
     for (int i = 0; i < N; i++)
     {
-        // Leemos 4 caracteres ignorando espacios o saltos de línea
         if (fscanf(input_fp, " %4s", b64_block) != 1)
             break;
 
-        base64_to_bytes(b64_block, &byte_alto, &byte_bajo);
-        unsigned short C_block = (byte_alto << 8) | byte_bajo;
+        // Descifrar bloque usando TU función
+        unsigned short C_block = decode_base64_block(b64_block);
 
         unsigned short cont = (C0 << 8) | C1;
         unsigned short X = tbc_encrypt(cont, K);
         unsigned short M = C_block ^ X;
 
         fputc((M >> 8) & 0xFF, output_fp);
-
         if (i + 1 < N || (M & 0xFF) != 0)
             fputc(M & 0xFF, output_fp);
 
-        C1 = (C1 + 1) % 256;
-        if (C1 == 0)
-            C0 = (C0 + 1) % 256;
+        C1++;
 
         char caracteres[3];
         unformat_block(M, caracteres);
         mensaje_completo[mensaje_len++] = caracteres[0];
         mensaje_completo[mensaje_len++] = caracteres[1];
-        printf("\n>> Bloque %ld: Counter = %04X, Cipher = %s, Mblock = %04X", (i / 2) + 1, cont, b64_block, M);
+
+        printf("\n>> Bloque %d descifrado: %02X%02X", i + 1, (M >> 8) & 0xFF, M & 0xFF);
     }
 
     mensaje_completo[mensaje_len] = '\0';
     fclose(input_fp);
     fclose(output_fp);
 
-    printf("\n>> El contador inicial recuperado fue: %04X", init0);
-    printf("\n>> Texto descifrado: %s\n", mensaje_completo);
+    printf("\n>> El contador inicial recuperado fue: %04X", recovered_counter);
+    printf("\n>> Texto descifrado:\n%s\n", mensaje_completo);
     printf("\n>> Archivo descifrado guardado en: %s", output_filename);
 
     free(mensaje_completo);
