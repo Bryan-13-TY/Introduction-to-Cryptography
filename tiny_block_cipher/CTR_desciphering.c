@@ -146,47 +146,6 @@ static BlockCStatus load_sbox(char sbox_filename[], unsigned char sbox[])
     return BLOCKC_OK;
 }
 
-static BlockCStatus load_key(char key_filename[], unsigned short *K)
-{
-    FILE *fp = fopen(key_filename, "r");
-    if (!fp)
-        return BLOCKC_KEY_OPEN_FILE_ERROR;
-
-    char b64_key[10];
-    if (fscanf(fp, "%9s", b64_key) != 1)
-    {
-        fclose(fp);
-        return BLOCKC_KEY_READ_ERROR;
-    }
-    fclose(fp);
-
-    const char b64_chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    int val[4] = {0, 0, 0, 0};
-
-    for (int i = 0; i < 4; i++)
-    {
-        if (b64_key[i] == '=' || b64_key[i] == '\0')
-        {
-            val[i] = 0;
-        }
-        else
-        {
-            char *pos = strchr(b64_chars, b64_key[i]);
-            if (pos)
-            {
-                val[i] = (int)(pos - b64_chars);
-            }
-        }
-    }
-
-    unsigned char byte_alto = (val[0] << 2) | (val[1] >> 4);
-    unsigned char byte_bajo = ((val[1] & 0x0F) << 4) | (val[2] >> 2);
-
-    *K = (byte_alto << 8) | byte_bajo;
-
-    return BLOCKC_OK;
-}
-
 /**
  * @brief Convierte una cadena de 2 caracteres a un bloque de 2 bytes.
  *
@@ -410,6 +369,25 @@ static unsigned short decode_base64_block(char b64_block[])
 
     return block;
 }
+static BlockCStatus load_key(char key_filename[], unsigned short *K)
+{
+    FILE *fp = fopen(key_filename, "r");
+    if (!fp)
+        return BLOCKC_KEY_OPEN_FILE_ERROR;
+
+    char b64_key[6];
+    // Leemos la cadena Base64 del archivo key.txt
+    if (fscanf(fp, "%4s", b64_key) != 1)
+    {
+        fclose(fp);
+        return BLOCKC_KEY_READ_ERROR;
+    }
+    fclose(fp);
+
+    *K = decode_base64_block(b64_key);
+
+    return BLOCKC_OK;
+}
 
 BlockCStatus ctr_decrypt_file(char output_filename[])
 {
@@ -485,7 +463,7 @@ BlockCStatus ctr_decrypt_file(char output_filename[])
         mensaje_completo[mensaje_len++] = caracteres[0];
         mensaje_completo[mensaje_len++] = caracteres[1];
 
-        printf("\n>> Bloque %d descifrado: %02X%02X", i + 1, (M >> 8) & 0xFF, M & 0xFF);
+        // printf("\n>> Bloque %d descifrado: %02X%02X", i + 1, (M >> 8) & 0xFF, M & 0xFF);
     }
 
     mensaje_completo[mensaje_len] = '\0';

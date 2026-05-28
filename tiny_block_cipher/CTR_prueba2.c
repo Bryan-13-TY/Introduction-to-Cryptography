@@ -469,6 +469,7 @@ BlockCStatus ctr_encrypt_file(char input_filename[], char key[])
     }
 
     unsigned char C0 = rand() % 256;
+    // unsigned char C0 = 0x6D;
     unsigned char initial_C0 = C0;
     unsigned char C1 = 0;
     long num_blocks = (bytes_read + 1) / 2;
