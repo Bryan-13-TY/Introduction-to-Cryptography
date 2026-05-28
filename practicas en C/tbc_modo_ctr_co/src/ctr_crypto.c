@@ -1,11 +1,15 @@
 #include "ctr_crypto.h"
+#include "utils_crypto.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <sys/stat.h>
 
-#define SBOX_FILENAME "data/GEBAsbox.txt"
-#define PBOX_FILENAME "data/pbox.txt"
-#define KEY_FILENAME "data/key.txt"
-#define CIPHER_FILENAME "data/ciphertext.txt"
+#define DIR_BASE "data/"
+#define PLAIN_FILENAME "plaintext.txt"
+#define SBOX_FILENAME "EDU_sbox.txt"
+#define PBOX_FILENAME "permutation.txt"
+#define KEY_FILENAME "key.txt"
 #define PBOX_SIZE 8
 #define SBOX_SIZE 256
 
@@ -17,6 +21,11 @@ typedef struct {
 } CTRContext;
 
 static CTRContext ctr_data;
+
+static const char base64_table[] =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    "abcdefghijklmnopqrstuvwxyz"
+    "0123456789+/";
 
 /* ---------- FUNCIONES PARA OBTENER 4MSB, 4LSB, 8MSB, 8LSB ---------- */
 
@@ -120,7 +129,7 @@ static unsigned short format_block(unsigned char block[]) {
 /**
  * @brief Convierte un bloque de 2 bytes a una cadena de 2 caracteres.
  * 
- * @param value Bloque de dos 2 bytes.
+ * @param value Bloque de 2 bytes.
  * @param block Arreglo donde se guardan los 2 caracteres.
  */
 static void unformat_block(unsigned short value, char block[]) {
@@ -128,15 +137,164 @@ static void unformat_block(unsigned short value, char block[]) {
     block[1] = (unsigned char)value & 0xFF;
 }
 
+/* ---------- FUNCIONA PARA BASE64 ---------- */
+
+/**
+ * @brief Codifica un bloque de 2 bytes en Base64.
+ * 
+ * @param block Bloque de 2 bytes.
+ * @param b64_block Bloque codificado en Base64.
+ */
+static void encode_base64_block(
+    unsigned short block,
+    char b64_block[]
+) { 
+    unsigned char byte1;
+    unsigned char byte2;
+
+    unsigned int triple;
+
+    byte1 = (block >> 8) % 0xFF;
+    byte2 = block & 0xFF;
+
+    // Formar grupo de 24 bits
+    triple = (byte1 << 16) | (byte2 << 8);
+
+    // Convertir a Base64
+    b64_block[0] = base64_table[(triple >> 18) & 0x3F];
+    b64_block[1] = base64_table[(triple >> 12) & 0x3F];
+    b64_block[2] = base64_table[(triple >> 6) & 0x3F];
+    b64_block[3] = '=';
+    b64_block[4] = '\0';
+}
+
+static unsigned char base64_value(char c) {
+    char *ptr;
+
+    ptr = strchr(base64_table, c);
+    if (!ptr) return 0;
+
+    return ptr - base64_table;
+}
+
+/**
+ * @brief Decodifica un bloque en Base64 en 2 bytes.
+ * 
+ * @param b64_block Bloque codificado en Base64.
+ * 
+ * @return Bloque de 2 bytes.
+ */
+static unsigned short decode_base64_block(
+    char b64_block[]
+) {
+    unsigned char b0;
+    unsigned char b1;
+    unsigned char b2;
+
+    unsigned int triple;
+
+    unsigned short block;
+
+    b0 = base64_value(b64_block[0]);
+    b1 = base64_value(b64_block[1]);
+    b2 = base64_value(b64_block[2]);
+
+    // Reconstruir 24 bits
+    triple = (b0 << 18) | (b1 << 12) | (b2 << 6);
+
+    // Extraer solo los 2 bytes originales
+    block = ((triple >> 16) & 0xFF) << 8 | ((triple >> 8) & 0xFF);
+
+    return block;
+}
+
+/* ---------- FUNCIONES PARA ARCHIVOS Y CADENAS ---------- */
+
+/**
+ * @brief Genera la ruta completa de los archivos .txt usados por el programa.
+ * 
+ * @param full_path Arrglo en donde se guarda la ruta.
+ * @param size Tamaño de `full_path`.
+ * @param filename Nombre del archivo .txt.
+ */
+static void generate_full_path(char full_path[], size_t size, char filename[]) {
+    snprintf(full_path, size, "%s%s", DIR_BASE, filename);
+}
+
+/**
+ * @brief Obtiene al tamaño de un archivo.
+ * 
+ * Verifica que el tamaño de un archivo sea de al menos
+ * de 1 KB.
+ * 
+ * @param filename Nombre del archivo.
+ * @param size Apuntador en donde se guarda el tamaño del archivo en bytes.
+ * 
+ * @return CTRStatus Código de estado de la operación.
+ */
+static CTRStatus get_file_size(char filename[], long *size) {
+    struct stat st;
+
+    // Ruta completa para el plaintext
+    char full_path[150]; 
+    generate_full_path(full_path, sizeof(full_path), filename);
+
+    if (stat(full_path, &st) != 0) return CTR_PLAINT_GET_SIZE_FILE_ERROR;
+
+    if (st.st_size < 1024) return CTR_PLAINT_SIZE_FILE_ERROR;
+
+    *size = st.st_size;
+    return CTR_OK;
+}
+
+/**
+ * @brief Carga el plaintext desde un archivo de texto.
+ * 
+ * @param plaintext_filename Nombre del archivo.
+ * @param plaintext Puntero donde se guarda el plaintext.
+ * @param size_p Tamaño en bytes del archivo.
+ * 
+ * @return CTRStatus Código de estado de la operación.
+ */
+static CTRStatus load_plaintext(
+    char plaintext_filename[],
+    char **plaintext,
+    long size_p
+) {
+    *plaintext = (char *)malloc(size_p + 1);
+    if (!(*plaintext)) return CTR_PLAINT_MEMORY_ERROR;
+
+    // Ruta completa para el plaintext
+    char full_path[150];
+    generate_full_path(full_path, sizeof(full_path), plaintext_filename);
+    printf(">>> Abriendo archivo: %s\n", full_path);
+    
+    FILE *fp = fopen(full_path, "rb");
+    if (!fp) {
+        free(*plaintext);
+        return CTR_PLAINT_OPEN_FILE_ERROR;
+    }
+
+    // Leer todo el archivo
+    fread(*plaintext, sizeof(char), size_p, fp);
+    (*plaintext)[size_p] = '\0';
+    fclose(fp);
+    return CTR_OK;
+}
+
 /* ---------- FUNCIONES PARA LA LLAVE ---------- */
 
 CTRStatus secret_key_generator() {
     unsigned short K = rand() % 65536;
 
-    FILE *fp = fopen(KEY_FILENAME, "w");
+    FILE *fp = fopen(DIR_BASE KEY_FILENAME, "w");
     if (!fp) return CTR_KEY_GENERATION_ERROR;
 
-    fprintf(fp, "%04X\n", K);
+    char b64_block[5];
+
+    encode_base64_block(K, b64_block);
+
+    fprintf(fp, "%s\n", b64_block);
     fclose(fp);
     return CTR_OK;
 }
@@ -146,24 +304,25 @@ CTRStatus secret_key_generator() {
  * 
  * @param K Puntero donde se guarda la llave.
  * 
- * @return
- * - CTR_OK si se cargo correctamente.
- * - CTR_KEY_OPEN_FILE_ERROR si hubo un error al abrir al archivo de la llave.
- * - CTR_KEY_READ_ERROR si hubo un error al leer la llave.
+ * @return CTRStatus Código de estado de la operación.
  */
 static CTRStatus load_key(unsigned short *K) {
     // Ruta completa para la llave
     char full_path[150];
-    snprintf(full_path, sizeof(full_path), KEY_FILENAME);
+    generate_full_path(full_path, sizeof(full_path), KEY_FILENAME);
     printf(">>> Abriendo archivo: %s\n", full_path);
 
     FILE *fp = fopen(full_path, "r");
     if (!fp) return CTR_KEY_OPEN_FILE_ERROR;
 
-    if (fscanf(fp, "%hX", K) != 1) {
+    char b64_block[6];
+
+    if (fscanf(fp, "%4s", b64_block) != 1) {
         fclose(fp);
         return CTR_KEY_READ_ERROR;
     }
+
+    *K = decode_base64_block(b64_block);
 
     fclose(fp);
 
@@ -225,12 +384,10 @@ static void shuffle_array(int size, unsigned char array[]) {
  * @param size Número de entradas de la S-Box.
  * @param array Arreglo con la S-Box.
  * 
- * @return
- * - CTR_OK si se guardo correctamente.
- * - CTR_SBOX_GENERATION_ERROR si hubo un error al generar y guardar la S-Box.
+ * @return CTRStatus Código de estado de la operación.
  */
 static CTRStatus store_sbox(int size, unsigned char array[]) {
-    FILE *fp = fopen(SBOX_FILENAME, "w");
+    FILE *fp = fopen(DIR_BASE SBOX_FILENAME, "w");
     if (!fp) return CTR_SBOX_GENERATION_ERROR;
 
     for (int i = 0; i < size; i++) {
@@ -262,14 +419,12 @@ CTRStatus sbox_generator() {
  * 
  * @param sbox Arreglo en donde se guarda la S-Box.
  * 
- * @return
- * - CTR_OK si se cargo correctamente.
- * - CTR_SBOX_OPEN_FILE_ERROR si hubo un error al abrir el archivo de la S-Box.
+ * @return CTRStatus Código de estado de la operación.
  */
 static CTRStatus load_sbox(unsigned char sbox[]) {
     // Ruta completa para la S-Box
     char full_path[150];
-    snprintf(full_path, sizeof(full_path), SBOX_FILENAME);
+    generate_full_path(full_path, sizeof(full_path), SBOX_FILENAME);
     printf(">>> Abriendo archivo: %s\n", full_path);
 
     FILE *fp = fopen(full_path, "r");
@@ -325,12 +480,10 @@ static void shuffle_pbox(int P[PBOX_SIZE]) {
  * 
  * @param P Arreglo con la P-Box.
  * 
- * @return
- * - CTR_OK si se guardo correctamente.
- * - CTR_PBOX_GENERATION_ERROR si hubo un error al generar y guardar la P-Box.
+ * @return CTRStatus Código de estado de la operación.
  */
 static CTRStatus store_pbox(int P[PBOX_SIZE]) {
-    FILE *fp = fopen(PBOX_FILENAME, "w");
+    FILE *fp = fopen(DIR_BASE PBOX_FILENAME, "w");
     if (!fp) return CTR_PBOX_GENERATION_ERROR;
 
     for (int i = 0; i < PBOX_SIZE; i++) {
@@ -357,16 +510,12 @@ CTRStatus pbox_generator() {
  * 
  * @param P Arreglo donde se guarda la P-Box.
  * 
- * @return
- * - CTR_OK si se cargo correctamente.
- * - CTR_PBOX_OPEN_FILE_ERROR si hubo un error al abrir el archivo de la P-Box.
- * - CTR_PBOX_OUT_OF_THE_RANGE_ERROR si el tamaño de la P-Box es incorrecto. 
- * - CTR_PBOX_REPEATED_VALUES_ERROR si hay valores repetidos en la P-Box.
+ * @return CTRStatus Código de estado de la operación.
  */
 static CTRStatus load_pbox(int P[PBOX_SIZE]) {
     // Ruta completa para la P-Box
     char full_path[150];
-    snprintf(full_path, sizeof(full_path), PBOX_FILENAME);
+    generate_full_path(full_path, sizeof(full_path), PBOX_FILENAME);
     printf(">>> Abriendo archivo: %s\n", full_path);
 
     FILE *fp = fopen(full_path, "r");
@@ -406,14 +555,7 @@ static CTRStatus load_pbox(int P[PBOX_SIZE]) {
 /**
  * @brief Carga el contexto para el modo CTR.
  * 
- * @return
- * - CTR_OK si se cargo correctamente.
- * - CTR_SBOX_OPEN_FILE_ERROR si hubo un error al abrir el archivo de la S-Box.
- * - CTR_PBOX_OPEN_FILE_ERROR si hubo un error al abrir el archivo de la P-Box.
- * - CTR_PBOX_OUT_OF_THE_RANGE_ERROR si el tamaño de la P-Box es incorrecto.
- * - CTR_PBOX_REPEATED_VALUES_ERROR si hay valores repetidos en la P-Box.
- * - CTR_KEY_OPEN_FILE_ERROR si hubo un error al abrir al archivo de la llave.
- * - CTR_KEY_READ_ERROR si hubo un error al leer la llave.
+ * @return CTRStatus Código de estado de la operación.
  */
 static CTRStatus load_ctr_context() {
     CTRStatus ctr_status;
@@ -438,7 +580,7 @@ static CTRStatus load_ctr_context() {
  * 
  * @return Bloque cifrado.
  */
-static unsigned short encrypt_block(unsigned short M, unsigned short K) {
+static unsigned short TBC_encrypt(unsigned short M, unsigned short K) {
     unsigned short L, R;
 
     // Expandir la llave
@@ -474,7 +616,11 @@ static unsigned short encrypt_block(unsigned short M, unsigned short K) {
  * @param size_plaintext Tamaño del `plaintext`.
  * @param blocks Arreglo en donde se guardan los bloques del `plaintext`.
  */
-static void divide_blocks(char plaintext[], int size_plaintext, unsigned short blocks[]) {
+static void divide_blocks(
+    char plaintext[],
+    int size_plaintext,
+    unsigned short blocks[]
+) {
     unsigned char block_temp[2];
     
     int i = 0, j = 0;
@@ -503,42 +649,65 @@ static void divide_blocks(char plaintext[], int size_plaintext, unsigned short b
  * @param ciphertext Arreglo con el texto cifrado.
  * @param num_blocks Número de bloques de `ciphertext`.
  * 
- * @return
- * - CTR_OK si se guardo correctamente.
- * - CTR_CIPHER_GENERATION_ERROR si hubo un error al generar y guardar el texto cifrado.
+ * @return CTRStatus Código de estado de la operación.
  */
 static CTRStatus store_ciphertext(
     unsigned char C0,
     unsigned short ciphertext[],
     int num_blocks
 ) {
-    FILE *fp = fopen(CIPHER_FILENAME, "w");
+    char ciphertext_filename[60];
+
+    printf("\n>>> Escribe el nombre del archivo para guardar el ciphertext: ");
+    read_string(sizeof(ciphertext_filename), ciphertext_filename);
+
+    // Ruta completa para el ciphertext
+    char full_path[150];
+    generate_full_path(full_path, sizeof(full_path), ciphertext_filename);
+
+    FILE *fp = fopen(full_path, "w");
     if (!fp) return CTR_CIPHER_GENERATION_ERROR;
 
-    fprintf(fp, "C0: %02X\n", C0);
+    char b64_block[5];
+
+    encode_base64_block(C0, b64_block);
+    fprintf(fp, "C0: %s\n", b64_block);
+
     fprintf(fp, "N: %d\n", num_blocks);
 
     for (int i = 0; i < num_blocks; i++) {
-        fprintf(fp, "%04X\n", ciphertext[i]);
+        encode_base64_block(ciphertext[i], b64_block);
+        fprintf(fp, "%s\n", b64_block);
     }
 
     fclose(fp);
     return CTR_OK;
 }
 
-CTRStatus encrypt_ctr(char plaintext[], int size_plaintext) {
+CTRStatus encrypt_ctr(char plaintext_filename[]) {
     CTRStatus ctr_status;
+
+    // Cargar el plaintext
+    char *plaintext = NULL;
+    long plain_size = 0;
+    
+    ctr_status = get_file_size(plaintext_filename, &plain_size);
+    if (CTR_OK != ctr_status) return ctr_status;
+    ctr_status = load_plaintext(plaintext_filename, &plaintext, plain_size);
+    if (CTR_OK != ctr_status) return ctr_status;
+
+    int plaintext_size = strlen(plaintext);
     
     // Cargar la llave, S-Box y P-Box
     ctr_status = load_ctr_context();
     if (CTR_OK != ctr_status) return ctr_status;
 
     // Dividir en bloques
-    int num_blocks = (size_plaintext + 1) / 2; // Considerando padding
+    int num_blocks = (plaintext_size + 1) / 2; // Considerando padding
     unsigned short blocks[num_blocks];
     unsigned short ciphertext[num_blocks];
 
-    divide_blocks(plaintext, size_plaintext, blocks);
+    divide_blocks(plaintext, plaintext_size, blocks);
 
     // CTR
     unsigned char C0 = rand() % 256;
@@ -548,7 +717,7 @@ CTRStatus encrypt_ctr(char plaintext[], int size_plaintext) {
 
     for (int i = 0; i < num_blocks; i++) {
         unsigned short counter = ((unsigned short)C0 << 8) | C1;
-        unsigned short keystream = encrypt_block(counter, ctr_data.K);
+        unsigned short keystream = TBC_encrypt(counter, ctr_data.K);
 
         ciphertext[i] = blocks[i] ^ keystream;
 
@@ -575,30 +744,30 @@ CTRStatus encrypt_ctr(char plaintext[], int size_plaintext) {
  * @param ciphertext Arreglo en donde se guarda el texto cifrado.
  * @param num_blocks Variable en donde se guarda el número de bloques del `ciphertext`.
  * 
- * @return
- * - CTR_OK si se cargo correctamente.
- * - CTR_CIPHER_OPEN_FILE_ERROR si hubo un error al abrir el archivo del `ciphertext`.
- * - CTR_COUNTER_READ_ERROR si hubo un error al leer el byte alto del contador del modo CTR.
- * - CTR_NUM_BLOCKS_READ_ERROR si hubo un error al leer el número de bloques del ciphertext.
- * - CTR_CIPHERTEXT_READ_ERROR si hubo un error al leer los bloques del ciphertext.
+ * @return CTRStatus Código de estado de la operación.
  */
 static CTRStatus load_ciphertext(
     unsigned char *C0,
     unsigned short ciphertext[],
-    int *num_blocks
+    int *num_blocks,
+    char ciphertext_filename[]
 ) {
     // Ruta completa para la P-Box
     char full_path[150];
-    snprintf(full_path, sizeof(full_path), CIPHER_FILENAME);
+    generate_full_path(full_path, sizeof(full_path), ciphertext_filename);
     printf(">>> Abriendo archivo: %s\n", full_path);
 
     FILE *fp = fopen(full_path, "r");
     if (!fp) return CTR_CIPHER_OPEN_FILE_ERROR;
 
-    if (fscanf(fp, " C0: %hhX", C0) != 1) {
+    char b64_block[6];
+
+    if (fscanf(fp, " C0: %4s", b64_block) != 1) {
         fclose(fp);
         return CTR_COUNTER_READ_ERROR;
     }
+
+    *C0 = decode_base64_block(b64_block);
 
     if (fscanf(fp, " N: %d", num_blocks) != 1) {
         fclose(fp);
@@ -606,10 +775,13 @@ static CTRStatus load_ciphertext(
     }
 
     for (int i = 0; i < *num_blocks; i++) {
-        if (fscanf(fp, " %hX", &ciphertext[i]) != 1) {
+        // Leer bloque Base64
+        if (fscanf(fp, " %4s", b64_block) != 1) {
             fclose(fp);
             return CTR_CIPHER_READ_ERROR;
         }
+
+        ciphertext[i] = decode_base64_block(b64_block);
     }
 
     fclose(fp);
@@ -631,7 +803,7 @@ static void rebuild_text(unsigned short plaintext[], int num_blocks) {
     }
 }
 
-CTRStatus decrypt_ctr() {
+CTRStatus decrypt_ctr(char ciphertext_filename[]) {
     unsigned char C0;
     int num_blocks;
     unsigned short ciphertext[5000];
@@ -644,7 +816,7 @@ CTRStatus decrypt_ctr() {
     if (CTR_OK != ctr_status) return ctr_status;
 
     // Cargar el ciphertext
-    ctr_status = load_ciphertext(&C0, ciphertext, &num_blocks);
+    ctr_status = load_ciphertext(&C0, ciphertext, &num_blocks, ciphertext_filename);
     if (CTR_OK != ctr_status) return ctr_status;
 
     // CTR
@@ -654,7 +826,7 @@ CTRStatus decrypt_ctr() {
 
     for (int i = 0; i < num_blocks; i++) {
         unsigned short counter = ((unsigned short)C0 << 8) | C1;
-        unsigned short keystream = encrypt_block(counter, ctr_data.K);
+        unsigned short keystream = TBC_encrypt(counter, ctr_data.K);
 
         plaintext[i] = ciphertext[i] ^ keystream;
 

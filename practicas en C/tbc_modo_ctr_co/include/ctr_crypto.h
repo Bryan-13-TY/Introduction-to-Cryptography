@@ -6,65 +6,40 @@
 /**
  * @brief Genera una S-Box de 8 bits.
  * 
- * @return
- * - CTR_OK si la S-Box se genero correctamente.
- * - CTR_SBOX_GENERATION_ERROR si hubo un al generar y guardar la S-Box.
- * - CTR_SBOX_MEMORY_ERROR si hubo un error al reservar memoria para la S-Box.
+ * @return CTRStatus Código de estado de la operación.
  */
 CTRStatus sbox_generator();
 
 /**
  * @brief Genera una llave secreta `K` de 16 bits.
  * 
- * @return
- * - CTR_OK si la llave se genero correctamente.
- * - CTR_KEY_GENERATION_ERROR si hubo un error al generar y guardar la llave.
+ * @return CTRStatus Código de estado de la operación.
  */
 CTRStatus secret_key_generator();
 
 /**
  * @brief Genera una P-Box de tamaño 8.
  * 
- * @return
- * - CTR_OK si la P-Box se genero correctamente.
- * - CTR_PBOX_GENERATION_ERROR si hubo un error al generar y guardar la P-Box.
+ * @return CTRStatus Código de estado de la operación.
  */
 CTRStatus pbox_generator();
 
 /**
  * @brief Cifra un texto en bloques de 2 bytes usando el modo CTR.
  * 
- * @param plaintext Texto a cifrar.
- * @param size_plaintext Tamaño del `plaintext`.
+ * @param plaintext_filename Archivo con el plaintext.
  * 
- * @return
- * - CTR_OK si el cifrado se hizo correctamente.
- * - CTR_SBOX_OPEN_FILE_ERROR si hubo un error al abrir el archivo de la S-Box.
- * - CTR_PBOX_OPEN_FILE_ERROR si hubo un error al abrir el archivo de la P-Box.
- * - CTR_PBOX_OUT_OF_THE_RANGE_ERROR si el tamaño de la P-Box es incorrecto.
- * - CTR_PBOX_REPEATED_VALUES_ERROR si hay valores repetidos en la P-Box.
- * - CTR_KEY_OPEN_FILE_ERROR si hubo un error al abrir al archivo de la llave.
- * - CTR_KEY_READ_ERROR si hubo un error al leer la llave.
- * - CTR_CIPHER_GENERATION_ERROR si hubo un error al generar y guardar el texto cifrado.
+ * @return CTRStatus Código de estado de la operación.
  */
-CTRStatus encrypt_ctr(char plaintext[], int size_plaintext);
+CTRStatus encrypt_ctr(char plaintext_filename[]);
 
 /**
  * @brief Descifra un texto en bloques de 2 bytes usando el modo CTR.
  * 
- * @return
- * - CTR_OK si el descifrado se hizo correctamente.
- * - CTR_SBOX_OPEN_FILE_ERROR si hubo un error al abrir el archivo de la S-Box.
- * - CTR_PBOX_OPEN_FILE_ERROR si hubo un error al abrir el archivo de la P-Box.
- * - CTR_PBOX_OUT_OF_THE_RANGE_ERROR si el tamaño de la P-Box es incorrecto.
- * - CTR_PBOX_REPEATED_VALUES_ERROR si hay valores repetidos en la P-Box.
- * - CTR_KEY_OPEN_FILE_ERROR si hubo un error al abrir al archivo de la llave.
- * - CTR_KEY_READ_ERROR si hubo un error al leer la llave.
- * - CTR_CIPHER_OPEN_FILE_ERROR si hubo un error al abrir el archivo del ciphertext.
- * - CTR_COUNTER_READ_ERROR si hubo un error al leer el byte alto del contador del modo CTR.
- * - CTR_NUM_BLOCKS_READ_ERROR si hubo un error al leer el número de bloques del ciphertext.
- * - CTR_CIPHERTEXT_READ_ERROR si hubo un error al leer los bloques del ciphertext.
+ * @param ciphertext_filename Archivo con el ciphertext.
+ * 
+ * @return CTRStatus Código de estado de la operación.
  */
-CTRStatus decrypt_ctr();
+CTRStatus decrypt_ctr(char ciphertext_filename[]);
 
 #endif /* CTR_CRYPTO_H */

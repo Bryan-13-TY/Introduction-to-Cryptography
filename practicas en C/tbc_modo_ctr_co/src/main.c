@@ -7,7 +7,8 @@
 
 int main(int argc, char const *argv[]) {
     int option = 0;
-    char plaintext[10000];
+    char plaintext_filename[60];
+    char ciphertext_filename[60];
     CTRStatus ctr_status;
 
     srand(time(NULL));
@@ -48,20 +49,16 @@ int main(int argc, char const *argv[]) {
                 wait_key();
                 break;
             case 4:
-                printf("\n>> Escribe el texto a cifrar: ");
-                read_string(sizeof(plaintext), plaintext);
-
-                if (strlen(plaintext) < 9998 || strlen(plaintext) > 10) {
-                    ctr_status = encrypt_ctr(plaintext, strlen(plaintext));
-                    show_possible_error(ctr_status);
-                } else {
-                    printf("\n>>> Minimo 10 y maximo 9998 caracteres para el texto");
-                }
-                
+                printf("\n>> Escribe el nombre del archivo con el plaintext: ");
+                read_string(sizeof(plaintext_filename), plaintext_filename);
+                ctr_status = encrypt_ctr(plaintext_filename);
+                show_possible_error(ctr_status);
                 wait_key();
                 break;
             case 5:
-                ctr_status = decrypt_ctr();
+                printf("\n>> Escribe el nombre del archivo con el ciphertext: ");
+                read_string(sizeof(ciphertext_filename), ciphertext_filename);
+                ctr_status = decrypt_ctr(ciphertext_filename); // nombre del ciphertext
                 show_possible_error(ctr_status);
                 wait_key();
                 break;
