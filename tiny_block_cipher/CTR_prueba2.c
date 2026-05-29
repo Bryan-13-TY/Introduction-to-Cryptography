@@ -398,16 +398,27 @@ static unsigned char apply_permutation(unsigned char P[8], unsigned char s)
     return result;
 }
 
-static void bytes_to_base64(unsigned char byte1, unsigned char byte2, char *output)
-{
-    const char b64_chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    unsigned int value = (byte1 << 16) | (byte2 << 8);
+static const char base64_table[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
-    output[0] = b64_chars[(value >> 18) & 0x3F];
-    output[1] = b64_chars[(value >> 12) & 0x3F];
-    output[2] = b64_chars[(value >> 6) & 0x3F];
-    output[3] = '=';
-    output[4] = '\0';
+static void encode_base64_block(unsigned short block, char b64_block[])
+{
+    unsigned char byte1;
+    unsigned char byte2;
+    unsigned int triple;
+
+    // Bug corregido: & 0xFF en lugar de % 0xFF
+    byte1 = (block >> 8) & 0xFF;
+    byte2 = block & 0xFF;
+
+    // Formar grupo de 24 bits
+    triple = (byte1 << 16) | (byte2 << 8);
+
+    // Convertir a Base64
+    b64_block[0] = base64_table[(triple >> 18) & 0x3F];
+    b64_block[1] = base64_table[(triple >> 12) & 0x3F];
+    b64_block[2] = base64_table[(triple >> 6) & 0x3F];
+    b64_block[3] = '=';
+    b64_block[4] = '\0';
 }
 
 BlockCStatus ctr_encrypt_file(char input_filename[], char key[])
@@ -447,7 +458,7 @@ BlockCStatus ctr_encrypt_file(char input_filename[], char key[])
     size_t bytes_read = fread(plaintext, 1, file_size, input_fp);
     fclose(input_fp);
 
-    printf("*Digite el nombre para guardar el archivo cifrado: ");
+    printf(">> Digite el nombre para guardar el archivo cifrado: ");
     read_string(sizeof(cipher_filename), cipher_filename);
 
     FILE *output_fp = fopen(cipher_filename, "w");
@@ -458,13 +469,17 @@ BlockCStatus ctr_encrypt_file(char input_filename[], char key[])
     }
 
     unsigned char C0 = rand() % 256;
+    // unsigned char C0 = 0x6D;
     unsigned char initial_C0 = C0;
     unsigned char C1 = 0;
     long num_blocks = (bytes_read + 1) / 2;
 
     printf("\n>> C0 inicial usado: %02X", initial_C0);
 
-    fprintf(output_fp, "C0: %02X\n", initial_C0);
+    char b64_c0[5];
+    encode_base64_block((unsigned short)initial_C0, b64_c0);
+
+    fprintf(output_fp, "C0: %s\n", b64_c0);
     fprintf(output_fp, "N: %ld\n", num_blocks);
 
     char b64_block[5];
@@ -481,14 +496,11 @@ BlockCStatus ctr_encrypt_file(char input_filename[], char key[])
 
         unsigned short Y = M_block ^ X;
 
-        bytes_to_base64((Y >> 8) & 0xFF, Y & 0xFF, b64_block);
+        // Cifrar usando tu función
+        encode_base64_block(Y, b64_block);
         fprintf(output_fp, "%s\n", b64_block);
 
-        C1 = (C1 + 1) % 256;
-        if (C1 == 0)
-            C0 = (C0 + 1) % 256;
-
-        printf("\n>> Bloque %ld: Counter = %04X, TBC = %04X, Cipher (B64) = %s", (i / 2) + 1, cont, X, b64_block);
+        C1++;
     }
 
     fclose(output_fp);

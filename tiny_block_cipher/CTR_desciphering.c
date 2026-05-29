@@ -146,47 +146,6 @@ static BlockCStatus load_sbox(char sbox_filename[], unsigned char sbox[])
     return BLOCKC_OK;
 }
 
-static BlockCStatus load_key(char key_filename[], unsigned short *K)
-{
-    FILE *fp = fopen(key_filename, "r");
-    if (!fp)
-        return BLOCKC_KEY_OPEN_FILE_ERROR;
-
-    char b64_key[10];
-    if (fscanf(fp, "%9s", b64_key) != 1)
-    {
-        fclose(fp);
-        return BLOCKC_KEY_READ_ERROR;
-    }
-    fclose(fp);
-
-    const char b64_chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    int val[4] = {0, 0, 0, 0};
-
-    for (int i = 0; i < 4; i++)
-    {
-        if (b64_key[i] == '=' || b64_key[i] == '\0')
-        {
-            val[i] = 0;
-        }
-        else
-        {
-            char *pos = strchr(b64_chars, b64_key[i]);
-            if (pos)
-            {
-                val[i] = (int)(pos - b64_chars);
-            }
-        }
-    }
-
-    unsigned char byte_alto = (val[0] << 2) | (val[1] >> 4);
-    unsigned char byte_bajo = ((val[1] & 0x0F) << 4) | (val[2] >> 2);
-
-    *K = (byte_alto << 8) | byte_bajo;
-
-    return BLOCKC_OK;
-}
-
 /**
  * @brief Convierte una cadena de 2 caracteres a un bloque de 2 bytes.
  *
@@ -382,21 +341,52 @@ static unsigned char apply_permutation(unsigned char P[8], unsigned char s)
     return result;
 }
 
-static void base64_to_bytes(const char *b64_str, unsigned char *byte_alto, unsigned char *byte_bajo)
+static const char base64_table[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+static unsigned char base64_value(char c)
 {
-    const char b64_chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    int val[3] = {0, 0, 0};
+    char *ptr;
+    ptr = strchr(base64_table, c);
+    if (!ptr)
+        return 0;
+    return ptr - base64_table;
+}
 
-    // Solo necesitamos decodificar los 3 primeros caracteres (el 4to es el padding '=')
-    for (int i = 0; i < 3; i++)
+static unsigned short decode_base64_block(char b64_block[])
+{
+    unsigned char b0;
+    unsigned char b1;
+    unsigned char b2;
+    unsigned int triple;
+    unsigned short block;
+
+    b0 = base64_value(b64_block[0]);
+    b1 = base64_value(b64_block[1]);
+    b2 = base64_value(b64_block[2]);
+
+    triple = (b0 << 18) | (b1 << 12) | (b2 << 6);
+    block = ((triple >> 16) & 0xFF) << 8 | ((triple >> 8) & 0xFF);
+
+    return block;
+}
+static BlockCStatus load_key(char key_filename[], unsigned short *K)
+{
+    FILE *fp = fopen(key_filename, "r");
+    if (!fp)
+        return BLOCKC_KEY_OPEN_FILE_ERROR;
+
+    char b64_key[6];
+    // Leemos la cadena Base64 del archivo key.txt
+    if (fscanf(fp, "%4s", b64_key) != 1)
     {
-        char *pos = strchr(b64_chars, b64_str[i]);
-        if (pos)
-            val[i] = (int)(pos - b64_chars);
+        fclose(fp);
+        return BLOCKC_KEY_READ_ERROR;
     }
+    fclose(fp);
 
-    *byte_alto = (val[0] << 2) | (val[1] >> 4);
-    *byte_bajo = ((val[1] & 0x0F) << 4) | (val[2] >> 2);
+    *K = decode_base64_block(b64_key);
+
+    return BLOCKC_OK;
 }
 
 BlockCStatus ctr_decrypt_file(char output_filename[])
@@ -418,25 +408,26 @@ BlockCStatus ctr_decrypt_file(char output_filename[])
     if (BLOCKC_OK != blockc_status)
         return blockc_status;
 
-    printf("*Digite el nombre del archivo cifrado a abrir: ");
+    printf(">> Digite el nombre del archivo cifrado a abrir: ");
     read_string(sizeof(cipher_filename), cipher_filename);
 
     FILE *input_fp = fopen(cipher_filename, "r");
     if (!input_fp)
         return BLOCKC_FILE_ERROR;
 
-    unsigned int temp_C0;
+    char b64_c0[5];
     int N;
 
-    if (fscanf(input_fp, " C0: %X", &temp_C0) != 1 || fscanf(input_fp, " N: %d", &N) != 1)
+    if (fscanf(input_fp, " C0: %4s", b64_c0) != 1 || fscanf(input_fp, " N: %d", &N) != 1)
     {
         fclose(input_fp);
         return BLOCKC_FILE_ERROR;
     }
 
-    unsigned char C0 = (unsigned char)temp_C0;
+    unsigned short decoded_c0 = decode_base64_block(b64_c0);
+    unsigned char C0 = (unsigned char)(decoded_c0 & 0xFF);
     unsigned char C1 = 0;
-    unsigned short init0 = (C0 << 8) | C1;
+    unsigned short recovered_counter = (C0 << 8) | C1;
 
     FILE *output_fp = fopen(output_filename, "wb");
     if (!output_fp)
@@ -448,44 +439,39 @@ BlockCStatus ctr_decrypt_file(char output_filename[])
     unsigned char *mensaje_completo = malloc(65536);
     int mensaje_len = 0;
     char b64_block[5];
-    unsigned char byte_alto, byte_bajo;
 
-    fprintf(output_fp, "C0: %02X\n", C0);
     for (int i = 0; i < N; i++)
     {
-        // Leemos 4 caracteres ignorando espacios o saltos de línea
         if (fscanf(input_fp, " %4s", b64_block) != 1)
             break;
 
-        base64_to_bytes(b64_block, &byte_alto, &byte_bajo);
-        unsigned short C_block = (byte_alto << 8) | byte_bajo;
+        // Descifrar bloque usando TU función
+        unsigned short C_block = decode_base64_block(b64_block);
 
         unsigned short cont = (C0 << 8) | C1;
         unsigned short X = tbc_encrypt(cont, K);
         unsigned short M = C_block ^ X;
 
         fputc((M >> 8) & 0xFF, output_fp);
-
         if (i + 1 < N || (M & 0xFF) != 0)
             fputc(M & 0xFF, output_fp);
 
-        C1 = (C1 + 1) % 256;
-        if (C1 == 0)
-            C0 = (C0 + 1) % 256;
+        C1++;
 
         char caracteres[3];
         unformat_block(M, caracteres);
         mensaje_completo[mensaje_len++] = caracteres[0];
         mensaje_completo[mensaje_len++] = caracteres[1];
-        printf("\n>> Bloque %ld: Counter = %04X, Cipher = %s, Mblock = %04X", (i / 2) + 1, cont, b64_block, M);
+
+        // printf("\n>> Bloque %d descifrado: %02X%02X", i + 1, (M >> 8) & 0xFF, M & 0xFF);
     }
 
     mensaje_completo[mensaje_len] = '\0';
     fclose(input_fp);
     fclose(output_fp);
 
-    printf("\n>> El contador inicial recuperado fue: %04X", init0);
-    printf("\n>> Texto descifrado: %s\n", mensaje_completo);
+    printf("\n>> El contador inicial recuperado fue: %04X", recovered_counter);
+    printf("\n>> Texto descifrado:\n%s\n", mensaje_completo);
     printf("\n>> Archivo descifrado guardado en: %s", output_filename);
 
     free(mensaje_completo);

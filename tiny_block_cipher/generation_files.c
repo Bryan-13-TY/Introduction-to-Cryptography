@@ -261,13 +261,11 @@ BlockCStatus permutation_generator()
 static void bytes_to_base64(unsigned char byte1, unsigned char byte2, char *output)
 {
     const char b64_chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    // Dividimos los 16 bits de los 2 bytes en grupos de 6 bits para Base64
-    // Un unsigned short completo genera 3 grupos de 6 bits (el último se rellena con ceros)
     unsigned int value = (byte1 << 16) | (byte2 << 8);
 
     output[0] = b64_chars[(value >> 18) & 0x3F];
     output[1] = b64_chars[(value >> 12) & 0x3F];
     output[2] = b64_chars[(value >> 6) & 0x3F];
-    output[3] = '='; // Acolchado (Padding) porque solo procesamos 2 bytes de los 3 que espera Base64 originalmente
+    output[3] = '=';
     output[4] = '\0';
 }
