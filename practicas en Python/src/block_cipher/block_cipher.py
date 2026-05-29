@@ -127,7 +127,7 @@ def _decrypt_file(key: bytes, ciphertext_file: str, output_file: str) -> None:
     
     print(
         f"\n{yellow('>>')} "
-        f"{success(f'Archivo descifrado correctamente y guardado como s{output_file}')}"
+        f"{success(f'Archivo descifrado correctamente y guardado como {output_file}')}"
     )
 
 
