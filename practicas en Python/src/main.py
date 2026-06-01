@@ -4,6 +4,7 @@ from affin_cipher import affin_cipher_menu
 from hill_cipher import hill_cipher_menu
 from shift_cipher import shift_cipher_menu
 from aes_cipher import aes_cipher_menu
+from aes_cipher_2 import aes_cipher_2_menu
 
 from utils import (
     clean_console,
@@ -29,7 +30,8 @@ def main() -> None:
 5.- Generar un archivo para 'DES'
 6.- Cifrar usando 'DES'
 7.- Cifrar usando 'AES'
-8.- Salir
+8.- Cifrar usando 'AES-V2'
+9.- Salir
 """)
         option = input("Opción: ")
         match option:
@@ -49,6 +51,8 @@ def main() -> None:
             case "7":
                 aes_cipher_menu()
             case "8":
+                aes_cipher_2_menu()
+            case "9":
                 print(f"\n{yellow('>>')} Gracias por probar el programa")
                 break
             case _:

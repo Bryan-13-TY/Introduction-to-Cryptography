@@ -18,7 +18,7 @@ from utils import (
     yellow,
 )
 
-__all__ = ["aes_cipher_menu"]
+__all__ = ["aes_cipher_2_menu"]
 
 def _is_valid_key(key_filename: str) -> bool:
     with open(BASE_DIR / key_filename, "r", encoding="utf-8") as f:
@@ -66,12 +66,12 @@ def _encrypt_file(
 
     ciphertext = cipher.encrypt(data)
 
-    with open(BASE_DIR / f"{ciphertext_filename}.enc", "wb") as f:
-        # Guardamos el tamaño del nonce
-        f.write(len(cipher.nonce).to_bytes(1, 'big')) 
-        # Guardamos el nonce
-        f.write(cipher.nonce)
-        f.write(ciphertext)
+    nonce_b64 = base64.b64encode(cipher.nonce).decode()
+    ciphertext_b64 = base64.b64encode(ciphertext).decode()
+
+    with open(BASE_DIR / ciphertext_filename, "w") as f:
+        f.write(nonce_b64 + "\n")
+        f.write(ciphertext_b64)
 
     print(
         f"\n{yellow('>>')} "
@@ -85,36 +85,35 @@ def _encrypt_file(
 def _decryp_file(
     key_filename: str,
     ciphertext_filename: str,
+    recovered_filename: str,
 ) -> None:
-    with open(BASE_DIR / ciphertext_filename, "rb") as f:
-        # Recuperamos el tamaño del once
-        nonce_size = int.from_bytes(f.read(1), 'big')
-        # Recuperamos el nonce
-        nonce = f.read(nonce_size)
-        ciphertext = f.read()
+    with open(BASE_DIR / ciphertext_filename, "r") as f:
+        nonce_b64 = f.readline().strip()
+        ciphertext_b64 = f.readline().strip()
 
     key = _rebuild_key(key_filename)
+    nonce = base64.b64decode(nonce_b64)
     decipher = AES.new(key, AES.MODE_CTR, nonce=nonce)
 
+    ciphertext = base64.b64decode(ciphertext_b64)
     recovered_plaintext = decipher.decrypt(ciphertext)
-    output_file = ciphertext_filename.removesuffix(".enc")
 
-    with open(BASE_DIR / output_file, "wb") as f:
+    with open(BASE_DIR / recovered_filename, "wb") as f:
         f.write(recovered_plaintext)
 
     print(
-        f"\n{yellow('>>')} "
-        f"{success(f'Archivo recuperado correctamente y guardado como {output_file}')}"
+        f"\n{yellow('>>')}"
+        f"{success(f'Archivo recuperado correctamente y guardado como {recovered_filename}')}"
     )
     
 
-def aes_cipher_menu() -> None:
+def aes_cipher_2_menu() -> None:
     while True:
         clean_console()
         print(f"""
-/*-----------.
-| AES CIPHER |
-`-----------*/
+/*--------------.
+| AES CIPHER V2 |
+`--------------*/
               
 {yellow('>>')} Elija una de las opciones
 
@@ -150,7 +149,8 @@ def aes_cipher_menu() -> None:
             case "3":
                 key_filename = input("\nEscribe el nombre del archivo con la llave: ")
                 infile = input("Escribe el nombre del archivo cifrado: ")
-                _decryp_file(key_filename, infile)
+                outfile = input("Escribe el nombre del archivo recuperado: ")
+                _decryp_file(key_filename, infile, outfile)
                 wait_key()
             case "4":
                 break
@@ -160,7 +160,7 @@ def aes_cipher_menu() -> None:
 
 
 def main() -> None:
-    aes_cipher_menu()
+    aes_cipher_2_menu()
 
 if __name__ == "__main__":
     main()
