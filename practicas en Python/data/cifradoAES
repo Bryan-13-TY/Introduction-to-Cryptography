@@ -1,0 +1,145 @@
+from Crypto.Cipher import AES
+from Crypto.Random import get_random_bytes
+from Crypto.Util import Counter
+import base64
+
+def cifrar_aes_ctr(plaintext, clave):
+    iv = get_random_bytes(16)   # IV de 16 bytes
+    #ctr = AES.new(key=clave, mode=AES.MODE_CTR, counter=lambda: iv) -> Forma sencilla
+
+    contador = Counter.new(128, initial_value=int.from_bytes(iv, 'big'))
+    cipher = AES.new(clave, AES.MODE_CTR, counter=contador)
+    ciphertext = cipher.encrypt(plaintext.encode('utf-8'))
+    return iv, ciphertext
+
+if __name__ == "__main__":
+    clave = get_random_bytes(32)   # 256 bits
+    print(f"Clave AES-256 (base64): {base64.b64encode(clave).decode()}")
+    
+    texto = input("Ingrese el texto a cifrar: ")
+    iv, cifrado = cifrar_aes_ctr(texto, clave)
+    
+    print(f"IV (base64): {base64.b64encode(iv).decode()}")
+    print(f"Cifrado (base64): {base64.b64encode(cifrado).decode()}")
+    
+    from Crypto.Cipher import AES
+from Crypto.Random import get_random_bytes
+from Crypto.Util import Counter
+import base64
+
+def cifrar_aes_ctr(plaintext, clave):
+    iv = get_random_bytes(16)   # IV de 16 bytes
+    #ctr = AES.new(key=clave, mode=AES.MODE_CTR, counter=lambda: iv) -> Forma sencilla
+
+    contador = Counter.new(128, initial_value=int.from_bytes(iv, 'big'))
+    cipher = AES.new(clave, AES.MODE_CTR, counter=contador)
+    ciphertext = cipher.encrypt(plaintext.encode('utf-8'))
+    return iv, ciphertext
+
+if __name__ == "__main__":
+    clave = get_random_bytes(32)   # 256 bits
+    print(f"Clave AES-256 (base64): {base64.b64encode(clave).decode()}")
+    
+    texto = input("Ingrese el texto a cifrar: ")
+    iv, cifrado = cifrar_aes_ctr(texto, clave)
+    
+    print(f"IV (base64): {base64.b64encode(iv).decode()}")
+    print(f"Cifrado (base64): {base64.b64encode(cifrado).decode()}")
+    
+    from Crypto.Cipher import AES
+from Crypto.Random import get_random_bytes
+from Crypto.Util import Counter
+import base64
+
+def cifrar_aes_ctr(plaintext, clave):
+    iv = get_random_bytes(16)   # IV de 16 bytes
+    #ctr = AES.new(key=clave, mode=AES.MODE_CTR, counter=lambda: iv) -> Forma sencilla
+
+    contador = Counter.new(128, initial_value=int.from_bytes(iv, 'big'))
+    cipher = AES.new(clave, AES.MODE_CTR, counter=contador)
+    ciphertext = cipher.encrypt(plaintext.encode('utf-8'))
+    return iv, ciphertext
+
+if __name__ == "__main__":
+    clave = get_random_bytes(32)   # 256 bits
+    print(f"Clave AES-256 (base64): {base64.b64encode(clave).decode()}")
+    
+    texto = input("Ingrese el texto a cifrar: ")
+    iv, cifrado = cifrar_aes_ctr(texto, clave)
+    
+    print(f"IV (base64): {base64.b64encode(iv).decode()}")
+    print(f"Cifrado (base64): {base64.b64encode(cifrado).decode()}")
+    
+    from Crypto.Cipher import AES
+from Crypto.Random import get_random_bytes
+from Crypto.Util import Counter
+import base64
+
+def cifrar_aes_ctr(plaintext, clave):
+    iv = get_random_bytes(16)   # IV de 16 bytes
+    #ctr = AES.new(key=clave, mode=AES.MODE_CTR, counter=lambda: iv) -> Forma sencilla
+
+    contador = Counter.new(128, initial_value=int.from_bytes(iv, 'big'))
+    cipher = AES.new(clave, AES.MODE_CTR, counter=contador)
+    ciphertext = cipher.encrypt(plaintext.encode('utf-8'))
+    return iv, ciphertext
+
+if __name__ == "__main__":
+    clave = get_random_bytes(32)   # 256 bits
+    print(f"Clave AES-256 (base64): {base64.b64encode(clave).decode()}")
+    
+    texto = input("Ingrese el texto a cifrar: ")
+    iv, cifrado = cifrar_aes_ctr(texto, clave)
+    
+    print(f"IV (base64): {base64.b64encode(iv).decode()}")
+    print(f"Cifrado (base64): {base64.b64encode(cifrado).decode()}")
+    
+    from Crypto.Cipher import AES
+from Crypto.Random import get_random_bytes
+from Crypto.Util import Counter
+import base64
+
+def cifrar_aes_ctr(plaintext, clave):
+    iv = get_random_bytes(16)   # IV de 16 bytes
+    #ctr = AES.new(key=clave, mode=AES.MODE_CTR, counter=lambda: iv) -> Forma sencilla
+
+    contador = Counter.new(128, initial_value=int.from_bytes(iv, 'big'))
+    cipher = AES.new(clave, AES.MODE_CTR, counter=contador)
+    ciphertext = cipher.encrypt(plaintext.encode('utf-8'))
+    return iv, ciphertext
+
+if __name__ == "__main__":
+    clave = get_random_bytes(32)   # 256 bits
+    print(f"Clave AES-256 (base64): {base64.b64encode(clave).decode()}")
+    
+    texto = input("Ingrese el texto a cifrar: ")
+    iv, cifrado = cifrar_aes_ctr(texto, clave)
+    
+    print(f"IV (base64): {base64.b64encode(iv).decode()}")
+    print(f"Cifrado (base64): {base64.b64encode(cifrado).decode()}")
+    
+    from Crypto.Cipher import AES
+from Crypto.Random import get_random_bytes
+from Crypto.Util import Counter
+import base64
+
+def cifrar_aes_ctr(plaintext, clave):
+    iv = get_random_bytes(16)   # IV de 16 bytes
+    #ctr = AES.new(key=clave, mode=AES.MODE_CTR, counter=lambda: iv) -> Forma sencilla
+
+    contador = Counter.new(128, initial_value=int.from_bytes(iv, 'big'))
+    cipher = AES.new(clave, AES.MODE_CTR, counter=contador)
+    ciphertext = cipher.encrypt(plaintext.encode('utf-8'))
+    return iv, ciphertext
+
+if __name__ == "__main__":
+    clave = get_random_bytes(32)   # 256 bits
+    print(f"Clave AES-256 (base64): {base64.b64encode(clave).decode()}")
+    
+    texto = input("Ingrese el texto a cifrar: ")
+    iv, cifrado = cifrar_aes_ctr(texto, clave)
+    
+    print(f"IV (base64): {base64.b64encode(iv).decode()}")
+    print(f"Cifrado (base64): {base64.b64encode(cifrado).decode()}")
+    
+    
