@@ -1,6 +1,7 @@
 """Cifrado usando AES."""
 
 import base64
+from pathlib import Path
 
 from Crypto.Random import get_random_bytes
 from Crypto.Cipher import AES
@@ -32,14 +33,22 @@ def _is_valid_key(key_filename: str) -> bool:
 
 
 def _random_key_generator(key_size: int, key_file: str) -> None:
-    key = get_random_bytes(key_size)
+    if key_size not in (16, 24, 32):
+        print(
+            f"\n{yellow('>>')} "
+            f"{error('ERROR')}: AES solo acepta llaves de 16, 24 o 32 bytes"
+        )
+        return
 
-    with open(BASE_DIR / key_file, "w", encoding="utf-8") as f:
+    key = get_random_bytes(key_size)
+    key_filename = f"{key_file}_{key_size}.key"
+
+    with open(BASE_DIR / key_filename, "w", encoding="utf-8") as f:
         f.write(base64.b64encode(key).decode())
 
     print(
         f"\n{yellow('>>')} "
-        f"{success(f'Llave guardada correctamente y guardado como {key_file}')}"
+        f"{success(f'Llave guardada correctamente y guardado como {key_filename}')}"
     )
 
 
@@ -62,20 +71,24 @@ def _encrypt_file(
         data = f.read()
 
     key = _rebuild_key(key_filename)
-    cipher = AES.new(key, AES.MODE_CTR)
 
+    cipher = AES.new(key, AES.MODE_CTR)
     ciphertext = cipher.encrypt(data)
 
+    suffix = Path(plaintext_filename).suffix
     nonce_b64 = base64.b64encode(cipher.nonce).decode()
     ciphertext_b64 = base64.b64encode(ciphertext).decode()
 
-    with open(BASE_DIR / ciphertext_filename, "w") as f:
+    cipher_filename = f"{ciphertext_filename}{suffix}.txt"
+
+
+    with open(BASE_DIR / cipher_filename, "w") as f:
         f.write(nonce_b64 + "\n")
         f.write(ciphertext_b64)
 
     print(
         f"\n{yellow('>>')} "
-        f"{success(f'Archivo cifrado correctamente y guardado como {ciphertext_filename}')}"
+        f"{success(f'Archivo cifrado correctamente y guardado como {cipher_filename}')}"
     )
 
 
@@ -92,18 +105,23 @@ def _decryp_file(
         ciphertext_b64 = f.readline().strip()
 
     key = _rebuild_key(key_filename)
+
+    # Decodificamos base64
     nonce = base64.b64decode(nonce_b64)
-    decipher = AES.new(key, AES.MODE_CTR, nonce=nonce)
-
     ciphertext = base64.b64decode(ciphertext_b64)
+    
+    decipher = AES.new(key, AES.MODE_CTR, nonce=nonce)    
     recovered_plaintext = decipher.decrypt(ciphertext)
+    cipher_no_suffix = ciphertext_filename.removesuffix(".txt")
+    suffix = Path(cipher_no_suffix).suffix
+    output_file = f"{recovered_filename}{suffix}"
 
-    with open(BASE_DIR / recovered_filename, "wb") as f:
+    with open(BASE_DIR / output_file, "wb") as f:
         f.write(recovered_plaintext)
 
     print(
-        f"\n{yellow('>>')}"
-        f"{success(f'Archivo recuperado correctamente y guardado como {recovered_filename}')}"
+        f"\n{yellow('>>')} "
+        f"{success(f'Archivo recuperado correctamente y guardado como {output_file}')}"
     )
     
 
@@ -126,7 +144,7 @@ def aes_cipher_2_menu() -> None:
         match option:
             case "1":
                 try:
-                    key_size = int(input("\nEscribe el tamaño de la llave (bytes): "))
+                    key_size = int(input("\nEscribe el tamaño de la llave (16, 24 o 32 bytes): "))
                 except Exception:
                     print(
                         f"\n{yellow('>>')} {error('ERROR')}"
@@ -136,20 +154,20 @@ def aes_cipher_2_menu() -> None:
                     continue
 
                 key_file = input(
-                    "\nEscribe el nombre del archivo donde se almacenará la 'llave': "
+                    "\nEscribe el nombre del archivo donde se almacenará la 'llave' (solo nombre): "
                 )
                 _random_key_generator(key_size, key_file)
                 wait_key()
             case "2":
                 key_filename = input("\nEscribe el nombre del archivo con la llave: ")
                 infile = input("Escribe el nombre del archivo a cifrar: ")
-                outfile = input("Escribe el nombre del archivo cifrado: ")
+                outfile = input("Escribe el nombre del archivo cifrado (solo nombre): ")
                 _encrypt_file(key_filename, infile, outfile)
                 wait_key()
             case "3":
                 key_filename = input("\nEscribe el nombre del archivo con la llave: ")
                 infile = input("Escribe el nombre del archivo cifrado: ")
-                outfile = input("Escribe el nombre del archivo recuperado: ")
+                outfile = input("Escribe el nombre del archivo recuperado (solo nombre): ")
                 _decryp_file(key_filename, infile, outfile)
                 wait_key()
             case "4":
