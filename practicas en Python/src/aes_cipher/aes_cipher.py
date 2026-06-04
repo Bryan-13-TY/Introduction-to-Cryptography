@@ -3,6 +3,7 @@
 import base64
 from pathlib import Path
 import time
+from tqdm import tqdm
 
 from Crypto.Random import get_random_bytes
 from Crypto.Cipher import AES
@@ -85,11 +86,18 @@ def _encrypt_file(
         fout.write(len(cipher.nonce).to_bytes(1, 'big'))
         fout.write(cipher.nonce)
 
-        while chunk := fin.read(CHUNK_SIZE):
-            fout.write(cipher.encrypt(chunk))
+        with tqdm(
+            total=file_size,
+            unit="B",
+            unit_scale=True,
+            desc="Cifrando",
+        ) as pbar:
+            while chunk := fin.read(CHUNK_SIZE):
+                fout.write(cipher.encrypt(chunk))
+                pbar.update(len(chunk))
 
     elapsed = time.perf_counter() - start
-    speed_mb = (file_size / CHUNK_SIZE) / elapsed
+    speed_mb = (file_size / (1024 * 1024)) / elapsed
 
     print(
         f"\n{yellow('>>')} "
@@ -120,11 +128,18 @@ def _decrypt_file(
 
         decipher = AES.new(key, AES.MODE_CTR, nonce=nonce)
 
-        while chunk := fin.read(CHUNK_SIZE):
-            fout.write(decipher.decrypt(chunk))
+        with tqdm(
+            total=file_size,
+            unit="B",
+            unit_scale=True,
+            desc="Descifrado",
+        ) as pbar:
+            while chunk := fin.read(CHUNK_SIZE):
+                fout.write(decipher.decrypt(chunk))
+                pbar.update(len(chunk))
 
     elapsed = time.perf_counter() - start
-    speed_mb = (file_size / CHUNK_SIZE) / elapsed
+    speed_mb = (file_size / (1024 * 1024)) / elapsed
 
     print(
         f"\n{yellow('>>')} "
@@ -171,11 +186,13 @@ def aes_cipher_menu() -> None:
                 key_filename = input("\nEscribe el nombre del archivo con la llave: ")
                 infile = input("Escribe el nombre del archivo a cifrar: ")
                 outfile = input("Escribe el nombre del archivo cifrado (solo nombre): ")
+                print()
                 _encrypt_file(key_filename, infile, outfile)
                 wait_key()
             case "3":
                 key_filename = input("\nEscribe el nombre del archivo con la llave: ")
                 infile = input("Escribe el nombre del archivo cifrado: ")
+                print()
                 _decrypt_file(key_filename, infile)
                 wait_key()
             case "4":
