@@ -85,6 +85,7 @@ def _encrypt_file(
     with open(input_file, "rb") as fin, open(output_file, "wb") as fout:
         fout.write(len(cipher.nonce).to_bytes(1, 'big'))
         fout.write(cipher.nonce)
+        print()
 
         with tqdm(
             total=file_size,
@@ -127,6 +128,7 @@ def _decrypt_file(
         nonce = fin.read(nonce_len)
 
         decipher = AES.new(key, AES.MODE_CTR, nonce=nonce)
+        print()
 
         with tqdm(
             total=file_size,
@@ -186,13 +188,11 @@ def aes_cipher_menu() -> None:
                 key_filename = input("\nEscribe el nombre del archivo con la llave: ")
                 infile = input("Escribe el nombre del archivo a cifrar: ")
                 outfile = input("Escribe el nombre del archivo cifrado (solo nombre): ")
-                print()
                 _encrypt_file(key_filename, infile, outfile)
                 wait_key()
             case "3":
                 key_filename = input("\nEscribe el nombre del archivo con la llave: ")
                 infile = input("Escribe el nombre del archivo cifrado: ")
-                print()
                 _decrypt_file(key_filename, infile)
                 wait_key()
             case "4":

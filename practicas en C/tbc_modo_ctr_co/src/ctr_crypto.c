@@ -9,7 +9,7 @@
 #define PLAIN_FILENAME "plaintext.txt"
 #define SBOX_FILENAME "EDU_sbox.txt"
 #define PBOX_FILENAME "permutation.txt"
-#define KEY_FILENAME "key.key"
+#define KEY_FILENAME "key.txt"
 #define PBOX_SIZE 8
 #define SBOX_SIZE 256
 
