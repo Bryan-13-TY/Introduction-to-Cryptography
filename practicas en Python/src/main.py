@@ -5,7 +5,7 @@ from hill_cipher import hill_cipher_menu
 from shift_cipher import shift_cipher_menu
 from aes_cipher import aes_cipher_menu
 from aes_cipher_2 import aes_cipher_2_menu
-
+from rsa_cipher import rsa_cipher_menu, get_primes
 from utils import (
     clean_console,
     wait_key,
@@ -31,7 +31,9 @@ def main() -> None:
 6.- Cifrar usando 'DES'
 7.- Cifrar usando 'AES'
 8.- Cifrar usando 'AES-V2'
-9.- Salir
+9.- Generar números primos aleatorios
+10.- Cifrar usando 'RSA'
+11.- Salir
 """)
         option = input("Opción: ")
         match option:
@@ -53,6 +55,11 @@ def main() -> None:
             case "8":
                 aes_cipher_2_menu()
             case "9":
+                get_primes()
+                wait_key()
+            case "10":
+                rsa_cipher_menu()
+            case "11":
                 print(f"\n{yellow('>>')} Gracias por probar el programa")
                 break
             case _:
